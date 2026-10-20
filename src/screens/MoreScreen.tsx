@@ -216,7 +216,7 @@ export const AppearanceScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 };
 
 export const SecurityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { vaultPin, setVaultPin, requireBiometrics, setRequireBiometrics } = useProfileStore();
+  const { vaultPin, setVaultPin, requireBiometrics, setRequireBiometrics, setPinLength } = useProfileStore();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [msg, setMsg] = useState('');
@@ -229,16 +229,17 @@ export const SecurityScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       <Section title={vaultPin ? 'Change PIN' : 'You will create a PIN the first time you open a private section'}>
         {vaultPin ? (
           <>
-            <Field label="Current PIN" value={current} onChangeText={setCurrent} keyboardType="number-pad" secureTextEntry maxLength={4} />
-            <Field label="New 4-digit PIN" value={next} onChangeText={setNext} keyboardType="number-pad" secureTextEntry maxLength={4} error={msg && msg !== 'PIN changed' ? msg : undefined} hint={msg === 'PIN changed' ? msg : undefined} />
+            <Field label="Current PIN" value={current} onChangeText={setCurrent} keyboardType="number-pad" secureTextEntry maxLength={6} />
+            <Field label="New PIN (4 or 6 digits)" value={next} onChangeText={setNext} keyboardType="number-pad" secureTextEntry maxLength={6} error={msg && msg !== 'PIN changed' ? msg : undefined} hint={msg === 'PIN changed' ? msg : undefined} />
             <Button
               title="Change PIN"
               style={{ marginHorizontal: 16 }}
               onPress={async () => {
                 if (lockSecondsLeft() > 0) return setMsg(`Too many wrong tries. Wait ${lockSecondsLeft()} ${lockSecondsLeft() === 1 ? 'second' : 'seconds'}.`);
                 if (!(await checkPin(current))) return setMsg('Current PIN is wrong');
-                if (!/^\d{4}$/.test(next)) return setMsg('New PIN must be 4 digits');
+                if (!/^(\d{4}|\d{6})$/.test(next)) return setMsg('New PIN must be 4 or 6 digits');
                 setVaultPin(await hashPin(next));
+                setPinLength(next.length);
                 setCurrent('');
                 setNext('');
                 setMsg('PIN changed');

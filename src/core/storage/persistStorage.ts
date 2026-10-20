@@ -16,7 +16,7 @@ const loadKey = async () => {
 };
 
 let keyPromise: Promise<AESEncryptionKey> | null = null;
-const getKey = () =>
+export const getKey = () =>
   (keyPromise ??= loadKey().catch((e) => {
     keyPromise = null;
     throw e;

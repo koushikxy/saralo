@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { File, Paths } from 'expo-file-system';
+import { File, Directory, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { encryptWithPassword, decryptWithPassword } from '../security/passwordCrypto';
@@ -65,5 +65,12 @@ export const wipeAllData = async () => {
   for (const store of Object.values(stores)) {
     store.setState(store.getInitialState(), true);
     await store.persist.clearStorage();
+  }
+  if (Platform.OS === 'web') return;
+  for (const name of ['vault', 'photos']) {
+    try {
+      const dir = new Directory(Paths.document, name);
+      if (dir.exists) dir.delete();
+    } catch {}
   }
 };

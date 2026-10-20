@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
 import { copySecret } from '../../core/security/copySecret';
 import { Plus, FileText, KeyRound, StickyNote, MapPin, Receipt, Copy, Camera, ImageIcon } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, Fab, Empty, Form, Field, Pick, Button, T, DateField } from '../../ui/kit';
@@ -8,8 +8,18 @@ import { useColors } from '../../core/theme';
 import { localDate } from '../../core/date';
 import { confirmAction } from '../../core/confirm';
 import { MediaPickerService } from '../../core/storage/mediaPickerService';
+import { SecureImage, sealPhoto, deletePhoto } from '../../core/security/securePhoto';
 import { useProfileStore, DocType, NoteTag, BillTicketCategory, PasswordCategory } from '../../modules/profile/profileStore';
-import { VaultGate } from './VaultGate';
+import { VaultGate, useVaultSession } from './VaultGate';
+
+const pickHeld = async (pick: () => Promise<string | null>) => {
+  useVaultSession.getState().setPicking(true);
+  try {
+    return await pick();
+  } finally {
+    setTimeout(() => useVaultSession.getState().setPicking(false), 1500);
+  }
+};
 
 export type VaultKind = 'docs' | 'passwords' | 'notes' | 'addresses' | 'bills';
 
@@ -69,7 +79,7 @@ const VaultItems: React.FC<{ kind: VaultKind; navigation: any }> = ({ kind, navi
       : p.billsAndTickets.map((b) => (
           <Row
             key={b.id}
-            leading={b.imageUri ? <Image source={{ uri: b.imageUri }} style={{ width: 44, height: 44, borderRadius: 10 }} /> : undefined}
+            leading={b.imageUri ? <SecureImage uri={b.imageUri} style={{ width: 44, height: 44, borderRadius: 10 }} /> : undefined}
             icon={b.imageUri ? undefined : info.icon}
             iconColor={info.color}
             title={b.title}
@@ -89,15 +99,15 @@ const PhotoPicker: React.FC<{ uri?: string | null; onChange: (uri: string) => vo
       <T v="section" style={{ marginBottom: 8 }}>
         {label}
       </T>
-      {uri ? <Image source={{ uri }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 10, backgroundColor: c.soft }} resizeMode="contain" /> : null}
+      {uri ? <SecureImage uri={uri} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 10, backgroundColor: c.soft }} resizeMode="contain" /> : null}
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Button title="Camera" icon={Camera} variant="secondary" style={{ flex: 1 }} onPress={async () => {
-          const u = await MediaPickerService.takePhoto();
-          if (u) onChange(u);
+          const u = await pickHeld(MediaPickerService.takePhoto);
+          if (u) onChange(await sealPhoto(u));
         }} />
         <Button title="Gallery" icon={ImageIcon} variant="secondary" style={{ flex: 1 }} onPress={async () => {
-          const u = await MediaPickerService.pickFromGallery();
-          if (u) onChange(u);
+          const u = await pickHeld(MediaPickerService.pickFromGallery);
+          if (u) onChange(await sealPhoto(u));
         }} />
       </View>
     </View>
@@ -131,10 +141,12 @@ export const VaultFormScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (route.params?.scan && kind === 'bills' && !id) MediaPickerService.takePhoto().then((u) => u && setPhoto(u));
+    if (route.params?.scan && kind === 'bills' && !id) pickHeld(MediaPickerService.takePhoto).then(async (u) => u && setPhoto(await sealPhoto(u)));
   }, []);
 
   const save = () => {
+    const before = doc?.frontImageUri ?? bill?.imageUri;
+    if (before && before !== photo) deletePhoto(before);
     if (kind === 'docs') {
       const data = { title: a.trim(), docType: choice as DocType, docNumber: b.trim(), holderName: cField.trim(), expiryDate: d.trim() || undefined, frontImageUri: photo, issuer: '', isDigiLockerVerified: false };
       if (doc) p.updateDocument(doc.id, data);
@@ -157,7 +169,7 @@ export const VaultFormScreen: React.FC<{ navigation: any; route: any }> = ({ nav
     }
     if (kind === 'bills') {
       if (bill) p.deleteBillTicket(bill.id);
-      p.addBillTicket({ title: a.trim() || `${choice} ${localDate()}`, category: choice as BillTicketCategory, imageUri: photo ?? undefined, amount: b.trim() || undefined, date: bill?.date ?? localDate(), notes: cField.trim() || undefined });
+      p.addBillTicket({ title: a.trim() || `${choice}, ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, category: choice as BillTicketCategory, imageUri: photo ?? undefined, amount: b.trim() || undefined, date: bill?.date ?? localDate(), notes: cField.trim() || undefined });
     }
     done();
   };
@@ -221,9 +233,10 @@ export const VaultFormScreen: React.FC<{ navigation: any; route: any }> = ({ nav
             variant="secondary"
             style={{ marginHorizontal: 16 }}
             onPress={() =>
-              remove(a, () =>
-                kind === 'docs' ? p.deleteDocument(existing.id) : kind === 'passwords' ? p.deletePassword(existing.id) : kind === 'notes' ? p.deleteNote(existing.id) : kind === 'addresses' ? p.deleteAddress(existing.id) : p.deleteBillTicket(existing.id)
-              )
+              remove(a, () => {
+                deletePhoto(doc?.frontImageUri ?? bill?.imageUri);
+                kind === 'docs' ? p.deleteDocument(existing.id) : kind === 'passwords' ? p.deletePassword(existing.id) : kind === 'notes' ? p.deleteNote(existing.id) : kind === 'addresses' ? p.deleteAddress(existing.id) : p.deleteBillTicket(existing.id);
+              })
             }
           />
         ) : null}

@@ -92,7 +92,7 @@ export const useAppBoot = () => {
         retryFailedReads();
         runDaily();
       }
-      if (state === 'background') useVaultSession.getState().set(false);
+      if (state === 'background' && !useVaultSession.getState().picking) useVaultSession.getState().set(false);
     });
     return () => {
       appSub.remove();

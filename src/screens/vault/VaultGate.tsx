@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { create } from 'zustand';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { usePreventScreenCapture } from 'expo-screen-capture';
@@ -10,20 +10,29 @@ import { useColors, useTextScale } from '../../core/theme';
 import { useProfileStore } from '../../modules/profile/profileStore';
 import { hashPin, checkPin, lockSecondsLeft } from '../../core/security/pin';
 
-export const useVaultSession = create<{ unlocked: boolean; set: (v: boolean) => void }>((set) => ({
+const IDLE_LOCK_MS = 60000;
+
+export const useVaultSession = create<{ unlocked: boolean; lastUse: number; picking: boolean; set: (v: boolean) => void; touch: () => void; setPicking: (v: boolean) => void }>((set) => ({
   unlocked: false,
-  set: (v) => set({ unlocked: v }),
+  lastUse: 0,
+  picking: false,
+  set: (v) => set({ unlocked: v, lastUse: Date.now() }),
+  touch: () => set({ lastUse: Date.now() }),
+  setPicking: (v) => set({ picking: v, lastUse: Date.now() }),
 }));
 
 export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => void }> = ({ children, onCancel }) => {
   const c = useColors();
   const scale = useTextScale();
-  const { vaultPin, setVaultPin, requireBiometrics } = useProfileStore();
+  const { vaultPin, setVaultPin, requireBiometrics, pinLength, setPinLength } = useProfileStore();
   const { unlocked, set } = useVaultSession();
   const [entry, setEntry] = useState('');
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState('');
   const creating = !vaultPin;
+  const [newLength, setNewLength] = useState(6);
+  const seen = useRef(false);
+  const size = creating ? newLength : pinLength;
 
   const tryBiometric = async () => {
     if (creating || !requireBiometrics) return;
@@ -40,17 +49,18 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
   }, [unlocked]);
 
   const press = (d: string) => {
-    if (entry.length >= 4) return;
+    if (entry.length >= size) return;
     const next = entry + d;
     setEntry(next);
     setError('');
-    if (next.length < 4) return;
+    if (next.length < size) return;
     setTimeout(async () => {
       setEntry('');
       if (creating) {
         if (draft === null) return setDraft(next);
         if (draft === next) {
           setVaultPin(await hashPin(next));
+          setPinLength(next.length);
           set(true);
         } else {
           setDraft(null);
@@ -69,10 +79,25 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
 
   usePreventScreenCapture();
 
-  if (unlocked) return <>{children}</>;
+  useEffect(() => {
+    if (!unlocked) return;
+    const timer = setInterval(() => {
+      const v = useVaultSession.getState();
+      if (!v.picking && Date.now() - v.lastUse > IDLE_LOCK_MS) set(false);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [unlocked]);
+
+  if (unlocked) seen.current = true;
+  if (unlocked)
+    return (
+      <View style={{ flex: 1 }} onTouchStart={() => useVaultSession.getState().touch()}>
+        {children}
+      </View>
+    );
 
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'del'];
-  return (
+  const lockScreen = (
     <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       {onCancel ? (
         <TouchableOpacity onPress={onCancel} accessibilityLabel="Cancel" style={{ position: 'absolute', top: 12, left: 8, padding: 12 }}>
@@ -85,16 +110,23 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
         <Lock size={28} color={c.accent} />
       </View>
       <T v="h2" center>
-        {creating ? (draft === null ? 'Create a 4-digit PIN' : 'Enter the same PIN again') : 'Enter your PIN'}
+        {creating ? (draft === null ? `Create a ${newLength}-digit PIN` : 'Enter the same PIN again') : 'Enter your PIN'}
       </T>
       <T v="sub" center style={{ marginTop: 6 }}>
         {creating ? 'This PIN keeps your private things safe.' : 'Your private vault is locked.'}
       </T>
       <View style={{ flexDirection: 'row', gap: 18, marginVertical: 28 }}>
-        {[0, 1, 2, 3].map((i) => (
+        {Array.from({ length: size }, (_, i) => i).map((i) => (
           <View key={i} style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: i < entry.length ? c.accent : c.line }} />
         ))}
       </View>
+      {creating && draft === null && entry.length === 0 ? (
+        <TouchableOpacity onPress={() => setNewLength(newLength === 6 ? 4 : 6)} style={{ marginTop: -14, marginBottom: 14, padding: 8 }}>
+          <T v="sub" color={c.accent}>
+            {newLength === 6 ? 'Use a 4-digit PIN instead' : 'Use a safer 6-digit PIN'}
+          </T>
+        </TouchableOpacity>
+      ) : null}
       {error ? (
         <T v="sub" color={c.expense} style={{ marginBottom: 12 }}>
           {error}
@@ -125,6 +157,15 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
           );
         })}
       </View>
+    </View>
+  );
+  if (!seen.current) return lockScreen;
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {children}
+      </View>
+      <View style={StyleSheet.absoluteFill}>{lockScreen}</View>
     </View>
   );
 };

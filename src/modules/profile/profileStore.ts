@@ -141,6 +141,8 @@ export interface ProfileState {
 
   vaultPin: string;
   pinFails: number;
+  pinLength: number;
+  setPinLength: (n: number) => void;
   pinLockedUntil: number;
   setPinFails: (fails: number, lockedUntil: number) => void;
   setVaultPin: (pin: string) => void;
@@ -204,6 +206,8 @@ export const useProfileStore = create<ProfileState>()(
 
   vaultPin: '',
   pinFails: 0,
+  pinLength: 4,
+  setPinLength: (n) => set({ pinLength: n }),
   pinLockedUntil: 0,
   setPinFails: (fails, lockedUntil) => set({ pinFails: fails, pinLockedUntil: lockedUntil }),
   setVaultPin: (pin) => set({ vaultPin: pin }),
