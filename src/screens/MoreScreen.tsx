@@ -15,11 +15,11 @@ import {
   CloudUpload,
   ShieldCheck,
   Trash2,
-  Info,
   Camera,
   Dumbbell,
+  Pencil,
 } from 'lucide-react-native';
-import { Screen, AppBar, Section, Row, Avatar, T, Form, Field, Pick, Button, ToggleRow } from '../ui/kit';
+import { Screen, AppBar, Section, Row, Avatar, T, Form, Field, Pick, Button, ToggleRow, DateField } from '../ui/kit';
 import { useColors } from '../core/theme';
 import { confirmAction } from '../core/confirm';
 import { MediaPickerService } from '../core/storage/mediaPickerService';
@@ -141,7 +141,7 @@ export const ProfileForm: React.FC<{ navigation: any }> = ({ navigation }) => {
       <Field label="Your name" value={form.name} onChangeText={set('name')} />
       <Field label="Phone" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
       <Field label="Email" value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
-      <Field label="Date of birth" value={form.dob} onChangeText={set('dob')} hint="Day, month and year" />
+      <DateField label="Date of birth" value={form.dob} onChange={set('dob')} start="1990-01-01" past />
       <Pick label="Blood group" options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']} value={form.bloodGroup} onChange={set('bloodGroup')} />
       <Field label="Allergies (optional)" value={form.allergies} onChangeText={set('allergies')} />
       <Field label="Emergency contact name" value={form.emergencyContactName} onChangeText={set('emergencyContactName')} />
@@ -157,21 +157,27 @@ export const MedicalIdScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const line = (label: string, value: string) => (
     <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: c.line }}>
       <T v="section">{label}</T>
-      <T v="h2" style={{ marginTop: 2 }}>
-        {value || 'Not added'}
-      </T>
+      {value ? (
+        <T v="h2" style={{ marginTop: 2 }}>
+          {value}
+        </T>
+      ) : (
+        <T v="body" color={c.textMuted} style={{ marginTop: 2 }}>
+          Not added
+        </T>
+      )}
     </View>
   );
   return (
     <Screen>
-      <AppBar title="Medical ID" onBack={() => navigation.goBack()} right={[{ icon: Info, label: 'Edit', onPress: () => navigation.navigate('ProfileForm') }]} />
+      <AppBar title="Medical ID" onBack={() => navigation.goBack()} right={[{ icon: Pencil, label: 'Edit', onPress: () => navigation.navigate('ProfileForm') }]} />
       <T v="sub" style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         Show this screen to anyone helping you in an emergency.
       </T>
       {line('Name', profile.name)}
       {line('Blood group', profile.bloodGroup)}
       {line('Allergies', profile.allergies)}
-      {line('Date of birth', profile.dob)}
+      {line('Date of birth', /^\d{4}-\d{2}-\d{2}$/.test(profile.dob) ? new Date(`${profile.dob}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : profile.dob)}
       {line('Emergency contact', [profile.emergencyContactName, profile.emergencyContactPhone].filter(Boolean).join(' · '))}
       <View style={{ padding: 16 }}>
         {phone ? (

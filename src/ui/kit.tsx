@@ -325,17 +325,17 @@ export const Field: React.FC<
   );
 };
 
-export const DateField: React.FC<{ label: string; value: string; onChange: (v: string) => void; noYear?: boolean; hint?: string }> = ({ label, value, onChange, noYear, hint }) => {
+export const DateField: React.FC<{ label: string; value: string; onChange: (v: string) => void; noYear?: boolean; hint?: string; start?: string; past?: boolean }> = ({ label, value, onChange, noYear, hint, start, past }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const scale = useTextScale();
   const [iosOpen, setIosOpen] = React.useState(false);
   if (Platform.OS === 'web') return <Field label={label} value={value} onChangeText={onChange} hint="Like 2030-12-31" />;
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const current = valid ? new Date(`${value}T00:00:00`) : new Date();
+  const current = valid ? new Date(`${value}T00:00:00`) : start ? new Date(`${start}T00:00:00`) : new Date();
   const pick = (d?: Date) => d && onChange(localDate(d));
   const open = () =>
-    Platform.OS === 'android' ? DateTimePickerAndroid.open({ value: current, mode: 'date', onValueChange: (_, d) => pick(d) }) : setIosOpen(!iosOpen);
+    Platform.OS === 'android' ? DateTimePickerAndroid.open({ value: current, mode: 'date', maximumDate: past ? new Date() : undefined, onValueChange: (_, d) => pick(d) }) : setIosOpen(!iosOpen);
   return (
     <View style={styles.field}>
       <T v="section" style={{ marginBottom: 6 }}>
@@ -349,7 +349,7 @@ export const DateField: React.FC<{ label: string; value: string; onChange: (v: s
         </TouchableOpacity>
         {value && !noYear ? <Button title="Clear" variant="secondary" style={{ height: 52, paddingHorizontal: 16 }} onPress={() => onChange('')} /> : null}
       </View>
-      {iosOpen ? <DateTimePicker value={current} mode="date" display="inline" onChange={(_, d) => pick(d)} /> : null}
+      {iosOpen ? <DateTimePicker value={current} mode="date" display="inline" maximumDate={past ? new Date() : undefined} onChange={(_, d) => pick(d)} /> : null}
       {hint ? (
         <T v="caption" style={{ marginTop: 4 }}>
           {hint}
