@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { create } from 'zustand';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import { Delete, Fingerprint, Lock } from 'lucide-react-native';
 import { T } from '../../ui/kit';
 import { TouchableOpacity } from '../../components/Touchable';
 import { useColors, useTextScale } from '../../core/theme';
 import { useProfileStore } from '../../modules/profile/profileStore';
+import { hashPin, checkPin, lockSecondsLeft } from '../../core/security/pin';
 
 export const useVaultSession = create<{ unlocked: boolean; set: (v: boolean) => void }>((set) => ({
   unlocked: false,
@@ -43,12 +45,12 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
     setEntry(next);
     setError('');
     if (next.length < 4) return;
-    setTimeout(() => {
+    setTimeout(async () => {
       setEntry('');
       if (creating) {
         if (draft === null) return setDraft(next);
         if (draft === next) {
-          setVaultPin(next);
+          setVaultPin(await hashPin(next));
           set(true);
         } else {
           setDraft(null);
@@ -56,10 +58,16 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
         }
         return;
       }
-      if (next === vaultPin) set(true);
-      else setError('Wrong PIN. Try again.');
+      if (lockSecondsLeft() > 0) return setError(`Too many wrong tries. Wait ${lockSecondsLeft()} seconds.`);
+      if (await checkPin(next)) set(true);
+      else {
+        const wait = lockSecondsLeft();
+        setError(wait > 0 ? `Too many wrong tries. Wait ${wait} seconds.` : 'Wrong PIN. Try again.');
+      }
     }, 120);
   };
+
+  usePreventScreenCapture();
 
   if (unlocked) return <>{children}</>;
 

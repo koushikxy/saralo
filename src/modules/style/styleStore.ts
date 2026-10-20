@@ -269,7 +269,7 @@ export const useStyleStore = create<StyleState>()(
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
         if (pos?.coords) {
           const [geo] = await Location.reverseGeocodeAsync({
             latitude: pos.coords.latitude,

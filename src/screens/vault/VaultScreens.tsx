@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Image } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { copySecret } from '../../core/security/copySecret';
 import { Plus, FileText, KeyRound, StickyNote, MapPin, Receipt, Copy, Camera, ImageIcon } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, Fab, Empty, Form, Field, Pick, Button, T, DateField } from '../../ui/kit';
 import { TouchableOpacity } from '../../components/Touchable';
@@ -49,7 +49,7 @@ const VaultItems: React.FC<{ kind: VaultKind; navigation: any }> = ({ kind, navi
   const info = VAULT_INFO[kind];
   const open = (id: string) => navigation.navigate('VaultForm', { type: kind, id });
   const copyBtn = (text: string, label: string) => (
-    <TouchableOpacity onPress={() => Clipboard.setStringAsync(text)} accessibilityLabel={label} style={{ padding: 10 }}>
+    <TouchableOpacity onPress={() => copySecret(text)} accessibilityLabel={label} style={{ padding: 10 }}>
       <Copy size={20} color={c.textMuted} />
     </TouchableOpacity>
   );

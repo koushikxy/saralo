@@ -22,6 +22,7 @@ import {
 import { Screen, AppBar, Section, Row, Avatar, T, Form, Field, Pick, Button, ToggleRow, DateField } from '../ui/kit';
 import { useColors } from '../core/theme';
 import { confirmAction } from '../core/confirm';
+import { hashPin, checkPin, lockSecondsLeft } from '../core/security/pin';
 import { MediaPickerService } from '../core/storage/mediaPickerService';
 import { exportBackup, pickBackupFile, restoreBackup, wipeAllData } from '../core/storage/backup';
 import { useProfileStore, ThemeMode, TextSize } from '../modules/profile/profileStore';
@@ -233,10 +234,11 @@ export const SecurityScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             <Button
               title="Change PIN"
               style={{ marginHorizontal: 16 }}
-              onPress={() => {
-                if (current !== vaultPin) return setMsg('Current PIN is wrong');
+              onPress={async () => {
+                if (lockSecondsLeft() > 0) return setMsg(`Too many wrong tries. Wait ${lockSecondsLeft()} seconds.`);
+                if (!(await checkPin(current))) return setMsg('Current PIN is wrong');
                 if (!/^\d{4}$/.test(next)) return setMsg('New PIN must be 4 digits');
-                setVaultPin(next);
+                setVaultPin(await hashPin(next));
                 setCurrent('');
                 setNext('');
                 setMsg('PIN changed');

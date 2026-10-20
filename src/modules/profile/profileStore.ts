@@ -140,6 +140,9 @@ export interface ProfileState {
   contracts: EmploymentContract[];
 
   vaultPin: string;
+  pinFails: number;
+  pinLockedUntil: number;
+  setPinFails: (fails: number, lockedUntil: number) => void;
   setVaultPin: (pin: string) => void;
 
   themeMode: ThemeMode;
@@ -200,6 +203,9 @@ export const useProfileStore = create<ProfileState>()(
   },
 
   vaultPin: '',
+  pinFails: 0,
+  pinLockedUntil: 0,
+  setPinFails: (fails, lockedUntil) => set({ pinFails: fails, pinLockedUntil: lockedUntil }),
   setVaultPin: (pin) => set({ vaultPin: pin }),
 
   themeMode: 'system',

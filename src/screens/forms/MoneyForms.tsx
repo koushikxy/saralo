@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Share, Image, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
+import { copySecret } from '../../core/security/copySecret';
 import { Copy, Building2, CreditCard, Share2 } from 'lucide-react-native';
 import { Form, Field, Pick, T, Button, Section, Row, Chips, AppBar, Screen } from '../../ui/kit';
 import { TouchableOpacity } from '../../components/Touchable';
@@ -186,7 +187,7 @@ export const AccountsScreen: React.FC<Nav> = ({ navigation }) => {
     if (await unlockWithDevice('Show number')) setShown(id);
   };
   const copy = async (text: string) => {
-    if (await unlockWithDevice('Copy number')) Clipboard.setStringAsync(text);
+    if (await unlockWithDevice('Copy number')) copySecret(text);
   };
 
   return (
