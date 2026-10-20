@@ -17,6 +17,7 @@ import {
   Trash2,
   Info,
   Camera,
+  Dumbbell,
 } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, Avatar, T, Form, Field, Pick, Button, ToggleRow } from '../ui/kit';
 import { useColors } from '../core/theme';
@@ -75,6 +76,7 @@ export const MoreScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </Section>
 
       <Section title="Lifestyle">
+        <Row icon={Dumbbell} iconColor="#2563EB" title="Gym and workouts" chevron onPress={() => navigation.navigate('Gym')} />
         <Row icon={Shirt} iconColor="#7C3AED" title="Outfits and closet" chevron onPress={() => navigation.navigate('Outfits')} />
         <Row icon={Cake} iconColor="#C026D3" title="Birthdays and anniversaries" chevron onPress={() => navigation.navigate('Planner', { tab: 'Special days' })} last />
       </Section>

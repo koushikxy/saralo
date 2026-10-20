@@ -87,7 +87,7 @@ export const HealthScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Stepper onMinus={() => h.setSteps(Math.max(0, h.steps - 500))} onPlus={() => h.addSteps(500)} minusLabel="Remove 500 steps" plusLabel="Add 500 steps" />
         </Tracker>
         <Tracker icon={Moon} color="#7C3AED" title="Sleep last night" value={`${h.sleepHours} h`} goal={`${h.targetSleepHours} h`} pct={(h.sleepHours / h.targetSleepHours) * 100} last>
-          <Stepper onMinus={() => h.setSleep(Math.max(0, h.sleepHours - 0.5))} onPlus={() => h.setSleep(h.sleepHours + 0.5)} minusLabel="Less sleep" plusLabel="More sleep" />
+          <Stepper onMinus={() => h.setSleep(Math.max(0, h.sleepHours - 0.5))} onPlus={() => h.setSleep(h.sleepHours === 0 ? 7 : Math.min(16, h.sleepHours + 0.5))} minusLabel="Less sleep" plusLabel="More sleep" />
         </Tracker>
       </Section>
 
@@ -97,7 +97,7 @@ export const HealthScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ) : (
           medicines.map((m, i) => (
             <View key={m.id}>
-              <Row icon={Pill} iconColor="#DB2777" title={m.name} subtitle={[m.dose, m.note].filter(Boolean).join(' · ') || `${m.times.length} times a day`} onPress={() => navigation.navigate('MedicineForm', { id: m.id })} last />
+              <Row icon={Pill} iconColor="#DB2777" title={m.name} subtitle={[m.dose, m.note].filter(Boolean).join(' · ') || (m.times.length === 1 ? 'Once a day' : m.times.length === 2 ? 'Twice a day' : `${m.times.length} times a day`)} onPress={() => navigation.navigate('MedicineForm', { id: m.id })} last />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 74, paddingRight: 16, paddingBottom: 14, borderBottomWidth: i === medicines.length - 1 ? 0 : 0.5, borderBottomColor: c.line }}>
                 {m.times.map((t) => {
                   const taken = takenToday.includes(`${m.id}@${t}`);
