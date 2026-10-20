@@ -22,7 +22,7 @@ export const WelcomeScreen: React.FC = () => {
   const start = () => name.trim() && updateProfile({ name: name.trim() });
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 40 + insets.top, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <SaraloLogo size={64} />
         <T v="title" style={{ marginTop: 20 }}>

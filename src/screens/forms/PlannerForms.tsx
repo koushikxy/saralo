@@ -33,7 +33,7 @@ export const TodoForm: React.FC<Nav> = ({ navigation, route }) => {
 
   return (
     <Form title={existing ? 'Edit to-do' : 'New to-do'} onCancel={() => navigation.goBack()} onSave={save} canSave={!!title.trim()}>
-      <Field label="What do you need to do?" value={title} onChangeText={setTitle} autoFocus={!existing} returnKeyType="done" />
+      <Field label="What do you need to do?" value={title} onChangeText={setTitle} autoFocus={!existing} returnKeyType="done" onSubmitEditing={() => title.trim() && save()} />
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
         <T v="section" style={{ marginBottom: 8 }}>
           When

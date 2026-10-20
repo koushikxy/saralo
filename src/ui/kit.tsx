@@ -411,7 +411,7 @@ export const Form: React.FC<{ title: string; onCancel: () => void; onSave?: () =
   const styles = useStyles(makeStyles);
   const insets = useSafeAreaInsets();
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <View style={[styles.formHead, { paddingTop: Platform.OS === 'ios' ? 12 : 8 }]}>
         <TouchableOpacity onPress={onCancel} style={styles.formHeadBtn}>
           <T v="body" color={c.accent}>

@@ -9,6 +9,7 @@ const SEALED_PREFIX = 'sealed:';
 const loadKey = async () => {
   const saved = await readKey(KEY_NAME);
   if (saved) return AESEncryptionKey.import(saved, 'base64');
+  if (__DEV__) console.log('[Saralo] Creating a new storage key');
   const key = await AESEncryptionKey.generate();
   await writeKey(KEY_NAME, await key.encoded('base64'));
   return key;
@@ -65,6 +66,7 @@ const encryptedBackend = (): StateStorage => {
         return await retry(() => open(raw!), 2);
       } catch (e) {
         await backend.setItem(`${name}.unreadable`, raw);
+        await backend.removeItem(name);
         console.warn(`[Saralo] ${name} could not be unlocked and was set aside:`, e instanceof Error ? e.message : e);
         return null;
       }

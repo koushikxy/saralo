@@ -71,6 +71,7 @@ const startStepCounter = async () => {
   });
 };
 
+
 export const useAppBoot = () => {
   const [ready, setReady] = useState(false);
 
