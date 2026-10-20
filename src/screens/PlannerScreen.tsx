@@ -4,7 +4,7 @@ import { Plus, ListTodo, Bell, CalendarDays, ShoppingCart, Cake, ChevronLeft, Ch
 import { Screen, AppBar, Chips, Section, Row, Fab, Empty, T } from '../ui/kit';
 import { TouchableOpacity } from '../components/Touchable';
 import { useColors, useTextScale } from '../core/theme';
-import { localDate, parseTime } from '../core/date';
+import { localDate, parseTime, repeatText } from '../core/date';
 import { useFinanceOpsStore, TodoItem } from '../modules/finance/financeStore';
 import { useLifeStore, daysUntil } from '../modules/life/lifeStore';
 
@@ -27,13 +27,14 @@ export const PlannerScreen: React.FC<{ navigation: any; route: any }> = ({ navig
     }
   }, [route.params?.tab]);
 
+  const [calDay, setCalDay] = useState(localDate());
   const fab =
     tab === 'To-dos'
       ? { label: 'New to-do', go: () => navigation.navigate('TodoForm') }
       : tab === 'Reminders'
       ? { label: 'New reminder', go: () => navigation.navigate('ReminderForm') }
       : tab === 'Calendar'
-      ? { label: 'New event', go: () => navigation.navigate('EventForm') }
+      ? { label: 'New event', go: () => navigation.navigate('EventForm', { date: calDay }) }
       : tab === 'Special days'
       ? { label: 'Add day', go: () => navigation.navigate('SpecialDayForm') }
       : null;
@@ -45,7 +46,7 @@ export const PlannerScreen: React.FC<{ navigation: any; route: any }> = ({ navig
         <Chips options={TABS} value={tab} onChange={(v) => setTab(v as Tab)} style={{ paddingBottom: 4 }} />
         {tab === 'To-dos' ? <Todos navigation={navigation} /> : null}
         {tab === 'Reminders' ? <Reminders navigation={navigation} /> : null}
-        {tab === 'Calendar' ? <Calendar navigation={navigation} /> : null}
+        {tab === 'Calendar' ? <Calendar navigation={navigation} selected={calDay} setSelected={setCalDay} /> : null}
         {tab === 'Shopping' ? <Shopping /> : null}
         {tab === 'Special days' ? <SpecialDays navigation={navigation} /> : null}
       </Screen>
@@ -117,7 +118,7 @@ const Reminders: React.FC<{ navigation: any }> = ({ navigation }) => {
           icon={Bell}
           iconColor="#D97706"
           title={a.label}
-          subtitle={`${a.time} · ${a.days.length === 7 || a.days.length === 0 ? 'Every day' : a.days.join(', ')}`}
+          subtitle={`${a.time} · ${repeatText(a.days)}`}
           onPress={() => navigation.navigate('ReminderForm', { id: a.id })}
           last={i === sorted.length - 1}
           right={<Switch value={a.isEnabled} onValueChange={() => toggleAlarm(a.id)} trackColor={{ false: c.line, true: c.accent }} thumbColor="#FFFFFF" />}
@@ -127,12 +128,11 @@ const Reminders: React.FC<{ navigation: any }> = ({ navigation }) => {
   );
 };
 
-const Calendar: React.FC<{ navigation: any }> = ({ navigation }) => {
+const Calendar: React.FC<{ navigation: any; selected: string; setSelected: (d: string) => void }> = ({ navigation, selected, setSelected }) => {
   const c = useColors();
   const scale = useTextScale();
   const { calendarEvents, todos } = useFinanceOpsStore();
   const today = localDate();
-  const [selected, setSelected] = useState(today);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const blanks = (month.getDay() + 6) % 7;
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();

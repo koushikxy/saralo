@@ -325,7 +325,7 @@ export const Field: React.FC<
   );
 };
 
-export const DateField: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
+export const DateField: React.FC<{ label: string; value: string; onChange: (v: string) => void; noYear?: boolean; hint?: string }> = ({ label, value, onChange, noYear, hint }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const scale = useTextScale();
@@ -344,12 +344,17 @@ export const DateField: React.FC<{ label: string; value: string; onChange: (v: s
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <TouchableOpacity onPress={open} style={[styles.inputBox, { flex: 1, height: 52 }]} accessibilityLabel={label}>
           <Text style={{ fontSize: 17 * scale, color: value ? c.ink : c.textMuted }}>
-            {valid ? current.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : value || 'Choose a date'}
+            {valid ? current.toLocaleDateString('en-IN', noYear ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short', year: 'numeric' }) : value || 'Choose a date'}
           </Text>
         </TouchableOpacity>
-        {value ? <Button title="Clear" variant="secondary" style={{ height: 52, paddingHorizontal: 16 }} onPress={() => onChange('')} /> : null}
+        {value && !noYear ? <Button title="Clear" variant="secondary" style={{ height: 52, paddingHorizontal: 16 }} onPress={() => onChange('')} /> : null}
       </View>
       {iosOpen ? <DateTimePicker value={current} mode="date" display="inline" onChange={(_, d) => pick(d)} /> : null}
+      {hint ? (
+        <T v="caption" style={{ marginTop: 4 }}>
+          {hint}
+        </T>
+      ) : null}
     </View>
   );
 };

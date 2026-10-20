@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Form, Field, Pick, T, Button } from '../../ui/kit';
 import { WhenPicker } from '../../components/WhenPicker';
 import { useFinanceOpsStore, TodoCategory, TodoPriority, DayOfWeek, EventType } from '../../modules/finance/financeStore';
-import { localDate } from '../../core/date';
+import { localDate, repeatText } from '../../core/date';
 import { confirmAction } from '../../core/confirm';
 import { TouchableOpacity } from '../../components/Touchable';
 import { useColors } from '../../core/theme';
@@ -104,7 +104,7 @@ export const ReminderForm: React.FC<Nav> = ({ navigation, route }) => {
           })}
         </View>
         <T v="caption" style={{ marginTop: 8 }}>
-          {days.length === 7 || days.length === 0 ? 'Every day' : days.join(', ')}
+          {repeatText(days)}
         </T>
       </View>
       {existing ? (

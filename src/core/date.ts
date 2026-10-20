@@ -15,3 +15,11 @@ export const formatTime = (minutes: number) => {
   const suffix = h >= 12 ? 'PM' : 'AM';
   return `${h % 12 || 12}:${String(minutes % 60).padStart(2, '0')} ${suffix}`;
 };
+
+export const repeatText = (days: string[]) => {
+  const set = new Set(days);
+  if (set.size === 0 || set.size === 7) return 'Every day';
+  if (set.size === 5 && ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].every((d) => set.has(d))) return 'Weekdays';
+  if (set.size === 2 && set.has('Sat') && set.has('Sun')) return 'Weekends';
+  return days.join(', ');
+};

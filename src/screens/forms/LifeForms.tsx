@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { X, Plus } from 'lucide-react-native';
-import { Form, Field, Pick, T, Button } from '../../ui/kit';
+import { Form, Field, Pick, T, Button, DateField } from '../../ui/kit';
 import { WhenPicker } from '../../components/WhenPicker';
 import { useLifeStore, SpecialDay } from '../../modules/life/lifeStore';
 import { confirmAction } from '../../core/confirm';
 import { TouchableOpacity } from '../../components/Touchable';
 import { useColors } from '../../core/theme';
-import { localDate } from '../../core/date';
 
 type Nav = { navigation: any; route: any };
 
@@ -109,7 +108,7 @@ export const SpecialDayForm: React.FC<Nav> = ({ navigation, route }) => {
   const existing = specialDays.find((d) => d.id === route.params?.id);
   const [name, setName] = useState(existing?.name ?? '');
   const [kind, setKind] = useState<SpecialDay['kind']>(existing?.kind ?? 'Birthday');
-  const [date, setDate] = useState(existing ? `${new Date().getFullYear()}-${existing.date}` : localDate());
+  const [date, setDate] = useState(existing ? `${new Date().getFullYear()}-${existing.date}` : '');
 
   const save = () => {
     saveSpecialDay({ id: existing?.id, name: name.trim(), kind, date: date.slice(5) });
@@ -117,16 +116,10 @@ export const SpecialDayForm: React.FC<Nav> = ({ navigation, route }) => {
   };
 
   return (
-    <Form title={existing ? 'Edit special day' : 'New special day'} onCancel={() => navigation.goBack()} onSave={save} canSave={!!name.trim()}>
+    <Form title={existing ? 'Edit special day' : 'New special day'} onCancel={() => navigation.goBack()} onSave={save} canSave={!!name.trim() && !!date}>
       <Field label="Whose day is it?" value={name} onChangeText={setName} autoFocus={!existing} />
       <Pick label="What is it" options={['Birthday', 'Anniversary', 'Other']} value={kind} onChange={(v) => setKind(v as SpecialDay['kind'])} />
-      <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
-        <T v="section" style={{ marginBottom: 8 }}>
-          Date
-        </T>
-        <WhenPicker date={date} onChangeDate={setDate} time="" onChangeTime={() => {}} hideTime />
-        <T v="caption">We will remind you every year at 9 AM.</T>
-      </View>
+      <DateField label="Date" value={date} onChange={setDate} noYear hint="We will remind you every year at 9 AM." />
       {existing ? (
         <Button
           title="Delete"

@@ -58,7 +58,7 @@ export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChange
       : date === tomorrow
       ? 'Tomorrow'
       : date
-      ? new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+      ? new Date(`${date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
       : 'Pick date';
 
   return (

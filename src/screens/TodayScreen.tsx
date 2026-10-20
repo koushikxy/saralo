@@ -53,6 +53,11 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const spentToday = transactions.filter((t) => t.type === 'EXPENSE' && t.date === today).reduce((s, t) => s + t.amount, 0);
   const month = today.slice(0, 7);
 
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const passed = (t?: string) => {
+    const m = parseTime(t);
+    return m !== null && m < nowMin;
+  };
   const items: Item[] = [
     ...todos
       .filter((t) => t.dueDate === today || (t.dueDate < today && !t.isCompleted))
@@ -73,7 +78,7 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ),
       })),
     ...calendarEvents
-      .filter((e) => e.date === today)
+      .filter((e) => e.date === today && !passed(e.endTime || e.startTime))
       .map((e) => ({
         key: e.id,
         minutes: parseTime(e.startTime),
@@ -90,7 +95,7 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ),
       })),
     ...alarms
-      .filter((a) => a.isEnabled && (a.days.length === 0 || a.days.includes(weekday)))
+      .filter((a) => a.isEnabled && (a.days.length === 0 || a.days.includes(weekday)) && !passed(a.time))
       .map((a) => ({
         key: a.id,
         minutes: parseTime(a.time),
@@ -110,7 +115,7 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               icon={Pill}
               iconColor="#DB2777"
               title={m.name}
-              subtitle={[time, m.dose].filter(Boolean).join(' · ')}
+              subtitle={[time, m.dose, !taken && passed(time) ? 'not taken yet' : ''].filter(Boolean).join(' · ')}
               last={last}
               right={
                 <TouchableOpacity
