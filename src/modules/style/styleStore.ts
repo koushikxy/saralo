@@ -238,8 +238,8 @@ export const useStyleStore = create<StyleState>()(
       else if (code >= 95) condition = 'Thunderstorm';
 
       const umbrellaAdvice = needsUmbrella
-        ? `Umbrella recommended! ${precipitationProb}% chance of rain`
-        : `No umbrella needed today • Dry skies (${precipitationProb}% rain)`;
+        ? `Take an umbrella · ${precipitationProb}% chance of rain`
+        : `No umbrella needed · ${precipitationProb}% chance of rain`;
 
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

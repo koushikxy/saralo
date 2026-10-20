@@ -31,7 +31,7 @@ export const VaultListScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   const kind: VaultKind = route.params?.type ?? 'docs';
   const info = VAULT_INFO[kind];
   return (
-    <VaultGate>
+    <VaultGate onCancel={() => navigation.goBack()}>
       <View style={{ flex: 1 }}>
         <Screen>
           <AppBar title={info.title} onBack={() => navigation.goBack()} />
@@ -167,7 +167,7 @@ export const VaultFormScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   const canSave = kind === 'bills' ? !!photo || !!a.trim() : !!a.trim();
 
   return (
-    <VaultGate>
+    <VaultGate onCancel={done}>
       <Form title={title} onCancel={done} onSave={save} canSave={canSave}>
         {kind === 'docs' ? (
           <>

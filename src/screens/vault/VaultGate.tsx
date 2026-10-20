@@ -13,7 +13,7 @@ export const useVaultSession = create<{ unlocked: boolean; set: (v: boolean) => 
   set: (v) => set({ unlocked: v }),
 }));
 
-export const VaultGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => void }> = ({ children, onCancel }) => {
   const c = useColors();
   const scale = useTextScale();
   const { vaultPin, setVaultPin, requireBiometrics } = useProfileStore();
@@ -66,6 +66,13 @@ export const VaultGate: React.FC<{ children: React.ReactNode }> = ({ children })
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'del'];
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      {onCancel ? (
+        <TouchableOpacity onPress={onCancel} accessibilityLabel="Cancel" style={{ position: 'absolute', top: 12, left: 8, padding: 12 }}>
+          <T v="body" color={c.accent}>
+            Cancel
+          </T>
+        </TouchableOpacity>
+      ) : null}
       <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
         <Lock size={28} color={c.accent} />
       </View>

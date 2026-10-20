@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import {
   Droplets,
@@ -43,6 +43,11 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { steps, targetSteps, waterMl, targetWaterMl, logWater } = useHealthStore();
   const name = useProfileStore((s) => s.profile.name.trim().split(' ')[0]);
   const weather = useStyleStore((s) => s.weather);
+  const detectWeather = useStyleStore((s) => s.detectLocationAndWeather);
+
+  useEffect(() => {
+    if (weather.isLive) detectWeather().catch(() => {});
+  }, []);
   const { medicines, medTaken, toggleTaken, bills, specialDays } = useLifeStore();
 
   const hour = now.getHours();
@@ -216,9 +221,9 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Row
           icon={CloudSun}
           iconColor="#F59E0B"
-          title={`${Math.round(weather.temperature)}° · ${weather.condition}`}
-          subtitle={`${weather.city.split(',')[0]} · ${weather.umbrellaAdvice}`}
-          onPress={() => navigation.navigate('Outfits')}
+          title={weather.isLive ? `${Math.round(weather.temperature)}° · ${weather.condition}` : "Today's weather"}
+          subtitle={weather.isLive ? `${weather.city.split(',')[0]} · ${weather.umbrellaAdvice}` : 'Tap to see the weather where you are'}
+          onPress={() => (weather.isLive ? navigation.navigate('Outfits') : detectWeather().catch(() => {}))}
           chevron
           last
         />
