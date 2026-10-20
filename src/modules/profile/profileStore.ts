@@ -72,7 +72,7 @@ export interface VaultBillTicket {
 export type DocType =
   | 'Aadhaar'
   | 'PAN'
-  | 'Driving License'
+  | 'Driving Licence'
   | 'Passport'
   | 'Voter ID'
   | 'Degree'
@@ -371,7 +371,7 @@ export const useProfileStore = create<ProfileState>()(
     })),
 
   addDocument: (doc) => {
-    const UNIQUE_DOC_TYPES: DocType[] = ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID'];
+    const UNIQUE_DOC_TYPES: DocType[] = ['Aadhaar', 'PAN', 'Passport', 'Driving Licence', 'Voter ID'];
     if (UNIQUE_DOC_TYPES.includes(doc.docType)) {
       const existing = get().documents.find((d) => d.docType === doc.docType);
       if (existing) {

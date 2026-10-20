@@ -73,7 +73,7 @@ export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
         <T v="section" style={{ marginBottom: 8 }}>
           Date
         </T>
-        <WhenPicker date={date} onChangeDate={setDate} time="" onChangeTime={() => {}} hideTime />
+        <WhenPicker date={date} onChangeDate={setDate} time="" onChangeTime={() => {}} hideTime past />
       </View>
       <Field label="Note (optional)" value={note} onChangeText={setNote} hint={kind === 'Spent' ? 'For example: lunch with Riya' : 'For example: October salary'} />
       {existing ? (

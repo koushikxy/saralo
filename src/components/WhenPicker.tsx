@@ -20,6 +20,7 @@ type Props = {
   timeLabel?: string;
   allowNoTime?: boolean;
   hideTime?: boolean;
+  past?: boolean;
 };
 
 const toDate = (date?: string, time?: string) => {
@@ -29,13 +30,13 @@ const toDate = (date?: string, time?: string) => {
   return d;
 };
 
-export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChangeTime, timeLabel = 'Add time', allowNoTime = true, hideTime }) => {
+export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChangeTime, timeLabel = 'Add time', allowNoTime = true, hideTime, past }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const [iosMode, setIosMode] = useState<'date' | 'time' | null>(null);
   const today = localDate();
   const tomorrowDate = new Date();
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  tomorrowDate.setDate(tomorrowDate.getDate() + (past ? -1 : 1));
   const tomorrow = localDate(tomorrowDate);
 
   const apply = (mode: 'date' | 'time', picked: Date) => {
@@ -45,7 +46,7 @@ export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChange
 
   const open = (mode: 'date' | 'time') => {
     if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({ value: toDate(date, time), mode, onValueChange: (_, picked) => apply(mode, picked) });
+      DateTimePickerAndroid.open({ value: toDate(date, time), mode, maximumDate: past && mode === 'date' ? new Date() : undefined, onValueChange: (_, picked) => apply(mode, picked) });
     } else {
       setIosMode(iosMode === mode ? null : mode);
     }
@@ -66,7 +67,7 @@ export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChange
         <View style={styles.row}>
           {[
             { label: 'Today', value: today },
-            { label: 'Tomorrow', value: tomorrow },
+            { label: past ? 'Yesterday' : 'Tomorrow', value: tomorrow },
           ].map((opt) => (
             <TouchableOpacity
               key={opt.label}
@@ -128,6 +129,7 @@ export const WhenPicker: React.FC<Props> = ({ date, time, onChangeDate, onChange
         <DateTimePicker
           value={toDate(date, time)}
           mode={iosMode}
+          maximumDate={past && iosMode === 'date' ? new Date() : undefined}
           display="spinner"
           minuteInterval={5}
           onValueChange={(_, picked) => apply(iosMode, picked)}

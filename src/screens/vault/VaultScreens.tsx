@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Image } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Plus, FileText, KeyRound, StickyNote, MapPin, Receipt, Copy, Camera, ImageIcon } from 'lucide-react-native';
-import { Screen, AppBar, Section, Row, Fab, Empty, Form, Field, Pick, Button, T } from '../../ui/kit';
+import { Screen, AppBar, Section, Row, Fab, Empty, Form, Field, Pick, Button, T, DateField } from '../../ui/kit';
 import { TouchableOpacity } from '../../components/Touchable';
 import { useColors } from '../../core/theme';
 import { localDate } from '../../core/date';
@@ -21,7 +21,7 @@ export const VAULT_INFO: Record<VaultKind, { title: string; icon: any; color: st
   bills: { title: 'Bills and receipts', icon: Receipt, color: '#0284C7', empty: 'Photos of bills, warranty cards and tickets, so you can find them later.', add: 'Add bill photo' },
 };
 
-const DOC_TYPES: DocType[] = ['Aadhaar', 'PAN', 'Driving License', 'Passport', 'Voter ID', 'Vehicle RC', 'Insurance', 'Degree', 'Other'];
+const DOC_TYPES: DocType[] = ['Aadhaar', 'PAN', 'Driving Licence', 'Passport', 'Voter ID', 'Vehicle RC', 'Insurance', 'Degree', 'Other'];
 const NOTE_TAGS: NoteTag[] = ['Personal', 'Wi-Fi / Codes', 'Medical', 'Work', 'Confidential'];
 const BILL_TYPES: BillTicketCategory[] = ['Bill', 'Receipt', 'Warranty', 'Ticket', 'Other'];
 const PW_TYPES: PasswordCategory[] = ['Social', 'Finance', 'Work', 'Entertainment', 'Other'];
@@ -78,7 +78,7 @@ const VaultItems: React.FC<{ kind: VaultKind; navigation: any }> = ({ kind, navi
           />
         ));
 
-  if (rows.length === 0) return <Empty icon={info.icon} title={`No ${info.title.toLowerCase()} yet`} text={info.empty} />;
+  if (rows.length === 0) return <Empty icon={info.icon} title={`No ${info.title.replace(/^[A-Z][a-z]/, (m) => m.toLowerCase())} yet`} text={info.empty} />;
   return <Section>{rows.map((r, i) => React.cloneElement(r, { last: i === rows.length - 1 } as any))}</Section>;
 };
 
@@ -175,7 +175,7 @@ export const VaultFormScreen: React.FC<{ navigation: any; route: any }> = ({ nav
             <Field label="Name for this document" value={a} onChangeText={setA} hint="For example: My Aadhaar" />
             <Field label="Document number" value={b} onChangeText={setB} autoCapitalize="characters" error={error} />
             <Field label="Name on the document" value={cField} onChangeText={setC} />
-            <Field label="Valid till (optional)" value={d} onChangeText={setD} />
+            <DateField label="Valid till (optional)" value={d} onChange={setD} />
             <PhotoPicker uri={photo} onChange={setPhoto} label="Photo of the document (optional)" />
           </>
         ) : null}

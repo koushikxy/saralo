@@ -16,6 +16,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Check, ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from '../components/Touchable';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { localDate } from '../core/date';
 import { useColors, useStyles, useTextScale, Palette } from '../core/theme';
 
 export type Icon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
@@ -318,6 +320,35 @@ export const Field: React.FC<
           {hint}
         </T>
       ) : null}
+    </View>
+  );
+};
+
+export const DateField: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const scale = useTextScale();
+  const [iosOpen, setIosOpen] = React.useState(false);
+  if (Platform.OS === 'web') return <Field label={label} value={value} onChangeText={onChange} hint="Like 2030-12-31" />;
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const current = valid ? new Date(`${value}T00:00:00`) : new Date();
+  const pick = (d?: Date) => d && onChange(localDate(d));
+  const open = () =>
+    Platform.OS === 'android' ? DateTimePickerAndroid.open({ value: current, mode: 'date', onValueChange: (_, d) => pick(d) }) : setIosOpen(!iosOpen);
+  return (
+    <View style={styles.field}>
+      <T v="section" style={{ marginBottom: 6 }}>
+        {label}
+      </T>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TouchableOpacity onPress={open} style={[styles.inputBox, { flex: 1, height: 52 }]} accessibilityLabel={label}>
+          <Text style={{ fontSize: 17 * scale, color: value ? c.ink : c.textMuted }}>
+            {valid ? current.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : value || 'Choose a date'}
+          </Text>
+        </TouchableOpacity>
+        {value ? <Button title="Clear" variant="secondary" style={{ height: 52, paddingHorizontal: 16 }} onPress={() => onChange('')} /> : null}
+      </View>
+      {iosOpen ? <DateTimePicker value={current} mode="date" display="inline" onChange={(_, d) => pick(d)} /> : null}
     </View>
   );
 };
