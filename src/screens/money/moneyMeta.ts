@@ -39,4 +39,4 @@ const META: Record<string, [Icon, string]> = {
 
 export const categoryMeta = (category: string): [Icon, string] => META[category] ?? [CircleDollarSign, '#64748B'];
 
-export const rupees = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+export const rupees = (n: number) => `${n < 0 ? '−' : ''}₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
