@@ -15,7 +15,11 @@ const loadKey = async () => {
 };
 
 let keyPromise: Promise<AESEncryptionKey> | null = null;
-const getKey = () => (keyPromise ??= loadKey());
+const getKey = () =>
+  (keyPromise ??= loadKey().catch((e) => {
+    keyPromise = null;
+    throw e;
+  }));
 
 const seal = async (text: string) => {
   const input = CryptoJS.enc.Utf8.parse(text).toString(CryptoJS.enc.Base64);
@@ -47,17 +51,22 @@ const encryptedBackend = (): StateStorage => {
   const backend: StateStorage = storageBackend;
   return {
     getItem: async (name) => {
+      let raw: string | null;
       try {
-        const value = await retry(async () => {
-          const raw = await backend.getItem(name);
-          return raw == null ? null : open(raw);
-        });
+        raw = await retry(() => Promise.resolve(backend.getItem(name)));
         failedReads.delete(name);
-        return value;
       } catch (e) {
         failedReads.add(name);
         console.warn(`[Saralo] Could not read ${name}:`, e instanceof Error ? e.message : e);
         throw e;
+      }
+      if (raw == null) return null;
+      try {
+        return await retry(() => open(raw!), 2);
+      } catch (e) {
+        await backend.setItem(`${name}.unreadable`, raw);
+        console.warn(`[Saralo] ${name} could not be unlocked and was set aside:`, e instanceof Error ? e.message : e);
+        return null;
       }
     },
     setItem: async (name, value) => {
