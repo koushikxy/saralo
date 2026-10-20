@@ -14,7 +14,6 @@ import {
   Lock,
   CloudUpload,
   ShieldCheck,
-  Mail,
   Trash2,
   Info,
   Camera,
@@ -27,7 +26,6 @@ import { exportBackup, pickBackupFile, restoreBackup, wipeAllData } from '../cor
 import { useProfileStore, ThemeMode, TextSize } from '../modules/profile/profileStore';
 import { VAULT_INFO, VaultKind } from './vault/VaultScreens';
 
-const CONTACT = 'koushikmaity.pvt@gmail.com';
 
 export const MoreScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const c = useColors();
@@ -86,7 +84,6 @@ export const MoreScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Row icon={Lock} iconColor="#4F46E5" title="PIN and lock" chevron onPress={() => navigation.navigate('Security')} />
         <Row icon={CloudUpload} iconColor="#0284C7" title="Backup and restore" chevron onPress={() => navigation.navigate('Backup')} />
         <Row icon={ShieldCheck} iconColor="#059669" title="Privacy policy" chevron onPress={() => navigation.navigate('Privacy')} />
-        <Row icon={Mail} iconColor="#64748B" title="Contact us" subtitle={CONTACT} onPress={() => Linking.openURL(`mailto:${CONTACT}?subject=Saralo`)} />
         <Row
           icon={Trash2}
           iconColor="#E11D48"
@@ -310,7 +307,6 @@ export const PrivacyScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       {part('Backups', 'Backup files are made by you and locked with your password. You choose where to keep them.')}
       {part('Deleting your data', 'More → Delete all my data removes everything. Uninstalling the app does the same.')}
       {part('Children', 'Saralo is not made for children under 13.')}
-      {part('Contact', `Questions or requests: ${CONTACT}`)}
     </Screen>
   );
 };

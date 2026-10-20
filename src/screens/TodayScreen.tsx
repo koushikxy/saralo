@@ -25,7 +25,6 @@ import { localDate, parseTime } from '../core/date';
 import { useFinanceOpsStore, DayOfWeek } from '../modules/finance/financeStore';
 import { useWalletStore } from '../modules/wallet/walletStore';
 import { useHealthStore } from '../modules/health/healthStore';
-import { useProfileStore } from '../modules/profile/profileStore';
 import { useStyleStore } from '../modules/style/styleStore';
 import { useLifeStore, daysUntil, billDueDate } from '../modules/life/lifeStore';
 import { rupees } from './money/moneyMeta';
@@ -41,7 +40,6 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { todos, toggleTodo, calendarEvents, alarms } = useFinanceOpsStore();
   const { transactions } = useWalletStore();
   const { steps, targetSteps, waterMl, targetWaterMl, logWater } = useHealthStore();
-  const name = useProfileStore((s) => s.profile.name.trim().split(' ')[0]);
   const weather = useStyleStore((s) => s.weather);
   const detectWeather = useStyleStore((s) => s.detectLocationAndWeather);
 
@@ -50,8 +48,6 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, []);
   const { medicines, medTaken, toggleTaken, bills, specialDays } = useLifeStore();
 
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const weekday = WEEKDAYS[now.getDay()];
   const takenToday = medTaken[today] ?? [];
   const spentToday = transactions.filter((t) => t.type === 'EXPENSE' && t.date === today).reduce((s, t) => s + t.amount, 0);
@@ -161,13 +157,6 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           { icon: CircleUser, label: 'Profile and settings', onPress: () => navigation.navigate('More') },
         ]}
       />
-      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-        <T v="h2">
-          {greeting}
-          {name ? `, ${name}` : ''}
-        </T>
-        <T v="sub">{now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</T>
-      </View>
 
       <Quick
         items={[

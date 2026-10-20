@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Droplets, Footprints, Moon, Pill, Utensils, Activity, Target, Minus, Plus, Trash2 } from 'lucide-react-native';
+import { Droplets, Footprints, Moon, Pill, Utensils, Activity, Target, Minus, Plus, Trash2, Dumbbell } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, T, IconCircle } from '../ui/kit';
 import { TouchableOpacity } from '../components/Touchable';
 import { useColors } from '../core/theme';
@@ -8,6 +8,7 @@ import { localDate } from '../core/date';
 import { useHealthStore } from '../modules/health/healthStore';
 import { useLifeStore } from '../modules/life/lifeStore';
 import { confirmAction } from '../core/confirm';
+import { useFitnessStore } from '../modules/fitness/fitnessStore';
 
 const Stepper: React.FC<{ onMinus: () => void; onPlus: () => void; minusLabel: string; plusLabel: string }> = ({ onMinus, onPlus, minusLabel, plusLabel }) => {
   const c = useColors();
@@ -58,6 +59,9 @@ export const HealthScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const c = useColors();
   const today = localDate();
   const h = useHealthStore();
+  const workouts = useFitnessStore((s) => s.workouts);
+  const lastWorkout = workouts[0];
+  const gymSub = lastWorkout ? `Last: ${lastWorkout.title} · ${lastWorkout.date === localDate() ? 'today' : new Date(`${lastWorkout.date}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Log sets and reps, see your progress';
   const { medicines, medTaken, toggleTaken } = useLifeStore();
   const takenToday = medTaken[today] ?? [];
   const calories = h.meals.reduce((s, m) => s + m.calories, 0);
@@ -133,6 +137,10 @@ export const HealthScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             />
           ))
         )}
+      </Section>
+
+      <Section title="Gym">
+        <Row icon={Dumbbell} iconColor="#2563EB" title="Gym and workouts" subtitle={gymSub} chevron onPress={() => navigation.navigate('Gym')} last />
       </Section>
 
       <Section title={`Activity today${minutes ? ` · ${minutes} min` : ''}`} action={{ label: 'Add', onPress: () => navigation.navigate('ActivityForm') }}>

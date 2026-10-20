@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform, Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
+import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
 import { Sun, CalendarCheck, Wallet, HeartPulse, Menu } from 'lucide-react-native';
 
@@ -20,11 +21,15 @@ import { HealthScreen } from './src/screens/HealthScreen';
 import { MoreScreen, ProfileForm, MedicalIdScreen, AppearanceScreen, SecurityScreen, BackupScreen, PrivacyScreen } from './src/screens/MoreScreen';
 import { OutfitsScreen, ClothForm } from './src/screens/OutfitsScreen';
 import { BillsScreen } from './src/screens/money/BillsScreen';
+import { GymScreen, WorkoutForm } from './src/screens/GymScreens';
 import { VaultListScreen, VaultFormScreen } from './src/screens/vault/VaultScreens';
 import { TodoForm, ReminderForm, EventForm } from './src/screens/forms/PlannerForms';
 import { MedicineForm, BillForm, SpecialDayForm } from './src/screens/forms/LifeForms';
 import { TransactionForm, BudgetForm, UpiScreen, AccountsScreen, AccountForm } from './src/screens/forms/MoneyForms';
 import { MealForm, ActivityForm, GoalsForm } from './src/screens/forms/HealthForms';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ duration: 200, fade: true });
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -52,6 +57,7 @@ const FORMS = {
   GoalsForm,
   ProfileForm,
   ClothForm,
+  WorkoutForm,
   VaultForm: VaultFormScreen,
 };
 
@@ -60,6 +66,7 @@ const PAGES = {
   Upi: UpiScreen,
   Accounts: AccountsScreen,
   Outfits: OutfitsScreen,
+  Gym: GymScreen,
   VaultList: VaultListScreen,
   MedicalId: MedicalIdScreen,
   Appearance: AppearanceScreen,
@@ -116,6 +123,10 @@ export default function App() {
   const booted = useAppBoot();
   const [fontsLoaded, fontError] = useFonts({ GrandHotel_400Regular });
   const ready = booted && (fontsLoaded || !!fontError);
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
   const c = useColors();
   const hasName = useProfileStore((s) => !!s.profile.name.trim());
 

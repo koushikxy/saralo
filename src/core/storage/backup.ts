@@ -9,6 +9,7 @@ import { useFinanceOpsStore } from '../../modules/finance/financeStore';
 import { useProfileStore } from '../../modules/profile/profileStore';
 import { useStyleStore } from '../../modules/style/styleStore';
 import { useLifeStore } from '../../modules/life/lifeStore';
+import { useFitnessStore } from '../../modules/fitness/fitnessStore';
 
 const stores: Record<string, any> = {
   health: useHealthStore,
@@ -17,6 +18,7 @@ const stores: Record<string, any> = {
   profile: useProfileStore,
   style: useStyleStore,
   life: useLifeStore,
+  fitness: useFitnessStore,
 };
 
 const snapshot = () =>

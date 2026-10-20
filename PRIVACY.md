@@ -34,7 +34,3 @@ Settings, then Delete all my data, removes everything from your phone. Uninstall
 ## Children
 
 Saralo is not made for children under 13.
-
-## Contact
-
-Questions or requests: koushikmaity.pvt@gmail.com

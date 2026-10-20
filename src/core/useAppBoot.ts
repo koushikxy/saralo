@@ -7,6 +7,7 @@ import { useFinanceOpsStore } from '../modules/finance/financeStore';
 import { useProfileStore } from '../modules/profile/profileStore';
 import { useStyleStore } from '../modules/style/styleStore';
 import { useLifeStore } from '../modules/life/lifeStore';
+import { useFitnessStore } from '../modules/fitness/fitnessStore';
 import { watchReminders } from './reminders';
 import { failedReads } from './storage/persistStorage';
 import { useVaultSession } from '../screens/vault/VaultGate';
@@ -18,6 +19,7 @@ const stores = [
   useProfileStore,
   useStyleStore,
   useLifeStore,
+  useFitnessStore,
 ];
 
 const nameOf = (s: (typeof stores)[number]) => s.persist.getOptions().name ?? '';

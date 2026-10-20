@@ -31,22 +31,9 @@ Everything stays on your phone. No account, no ads, no tracking.
 - Light and dark mode, and a larger text option
 - Encrypted backup and restore
 
-## Run it
+## Get the app
 
-You need Node.js 20 or newer.
-
-```
-npm install
-npx expo start
-```
-
-Scan the QR code with the Expo Go app on your phone.
-
-Some things, like reminders on Android, only work in a real build:
-
-```
-npx eas-cli build -p android --profile preview
-```
+The Android app will be available from the Releases page of this repository.
 
 ## Built with
 
@@ -58,4 +45,4 @@ See [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-[MIT](LICENSE)
+Copyright © 2026 Koushik Maity. All rights reserved. You can use the app, but the code, name and logo may not be copied or reused. See [LICENSE](LICENSE).
