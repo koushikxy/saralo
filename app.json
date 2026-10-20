@@ -22,7 +22,11 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -86,6 +90,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4fc0371e-4b7e-4aca-87c7-984f8c2cb5b1"
+      }
+    },
+    "owner": "ksmaity"
   }
 }
