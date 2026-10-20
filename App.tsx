@@ -7,6 +7,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
 import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
 import { Sun, CalendarCheck, Wallet, HeartPulse, Menu } from 'lucide-react-native';
 
@@ -29,7 +30,7 @@ import { TransactionForm, BudgetForm, UpiScreen, AccountsScreen, AccountForm } f
 import { MealForm, ActivityForm, GoalsForm } from './src/screens/forms/HealthForms';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-SplashScreen.setOptions({ duration: 200, fade: true });
+if (Constants.executionEnvironment !== 'storeClient') SplashScreen.setOptions({ duration: 200, fade: true });
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();

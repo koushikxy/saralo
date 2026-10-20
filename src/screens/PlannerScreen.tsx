@@ -220,7 +220,8 @@ const Shopping: React.FC = () => {
             value={text}
             onChangeText={setText}
             onSubmitEditing={add}
-            returnKeyType="done"
+            submitBehavior="submit"
+            returnKeyType="next"
             accessibilityLabel="Item to buy"
             placeholder="Add an item"
             placeholderTextColor={c.textFaint}

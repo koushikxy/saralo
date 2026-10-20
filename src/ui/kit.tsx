@@ -236,9 +236,10 @@ export const Row: React.FC<{
       </View>
     </View>
   );
-  if (!onPress && !onLongPress) return body;
+  const press = onPress ?? onCheck;
+  if (!press && !onLongPress) return body;
   return (
-    <TouchableOpacity onPress={onPress} onLongPress={onLongPress} activeOpacity={0.6}>
+    <TouchableOpacity onPress={press} onLongPress={onLongPress} activeOpacity={0.6}>
       {body}
     </TouchableOpacity>
   );

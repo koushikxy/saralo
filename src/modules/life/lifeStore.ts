@@ -87,7 +87,12 @@ export const useLifeStore = create<LifeState>()(
         })),
       saveSpecialDay: ({ id, ...d }) => set((s) => ({ specialDays: upsert(s.specialDays, { ...d, id: id ?? newId('day') }) })),
       deleteSpecialDay: (id) => set((s) => ({ specialDays: s.specialDays.filter((d) => d.id !== id) })),
-      addShopping: (text) => set((s) => ({ shopping: [{ id: newId('shop'), text, done: false }, ...s.shopping] })),
+      addShopping: (text) =>
+        set((s) => {
+          const same = s.shopping.find((i) => i.text.trim().toLowerCase() === text.trim().toLowerCase());
+          if (same) return { shopping: s.shopping.map((i) => (i.id === same.id ? { ...i, done: false } : i)) };
+          return { shopping: [{ id: newId('shop'), text: text.trim(), done: false }, ...s.shopping] };
+        }),
       toggleShopping: (id) => set((s) => ({ shopping: s.shopping.map((i) => (i.id === id ? { ...i, done: !i.done } : i)) })),
       clearBought: () => set((s) => ({ shopping: s.shopping.filter((i) => !i.done) })),
       deleteShopping: (id) => set((s) => ({ shopping: s.shopping.filter((i) => i.id !== id) })),
