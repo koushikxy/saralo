@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toggleBillPaid } from '../core/payBill';
 import { View } from 'react-native';
 import { QrCode, Landmark, ArrowUpRight, ArrowDownLeft, Wallet, Target, Receipt } from 'lucide-react-native';
 import { Screen, AppBar, Chips, Section, Row, Empty, T, Button } from '../ui/kit';
@@ -20,7 +21,7 @@ const dayLabel = (d: string) => {
 export const MoneyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const c = useColors();
   const { transactions, getTotalBalance, monthlyBudget, categoryBudgets } = useWalletStore();
-  const { bills, togglePaid } = useLifeStore();
+  const bills = useLifeStore((s) => s.bills);
   const [filter, setFilter] = useState('All');
   const today = localDate();
   const month = today.slice(0, 7);
@@ -28,6 +29,7 @@ export const MoneyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const monthTx = transactions.filter((t) => t.date.startsWith(month));
   const spent = monthTx.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
   const earned = monthTx.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
+  const hasIncome = transactions.some((t) => t.type === 'INCOME');
   const left = monthlyBudget - spent;
 
   const byCat = Object.entries(
@@ -55,11 +57,20 @@ export const MoneyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       />
 
       <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 }}>
-        <T v="sub">Balance</T>
-        <T v="big">{rupees(getTotalBalance())}</T>
-        <T v="sub" style={{ marginTop: 4 }}>
-          {monthName}: spent {rupees(spent)} · got {rupees(earned)}
-        </T>
+        {hasIncome ? (
+          <>
+            <T v="sub">Balance</T>
+            <T v="big">{rupees(getTotalBalance())}</T>
+            <T v="sub" style={{ marginTop: 4 }}>
+              {monthName}: spent {rupees(spent)} · got {rupees(earned)}
+            </T>
+          </>
+        ) : (
+          <>
+            <T v="sub">Spent in {monthName}</T>
+            <T v="big">{rupees(spent)}</T>
+          </>
+        )}
         {monthlyBudget > 0 ? (
           <View style={{ marginTop: 12 }}>
             <View style={{ height: 8, borderRadius: 4, backgroundColor: c.soft, overflow: 'hidden' }}>
@@ -93,7 +104,7 @@ export const MoneyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   title={b.name}
                   subtitle={paid ? 'Paid' : `Due ${due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${b.amount ? ' · ' + rupees(b.amount) : ''}`}
                   checked={paid}
-                  onCheck={() => togglePaid(b.id, month)}
+                  onCheck={() => toggleBillPaid(b.id, month)}
                   onPress={() => navigation.navigate('BillForm', { id: b.id })}
                   last={i === arr.length - 1}
                 />

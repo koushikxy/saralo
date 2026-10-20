@@ -98,6 +98,8 @@ export const BudgetForm: React.FC<Nav> = ({ navigation }) => {
     Object.fromEntries(EXPENSE_CATEGORIES.map((cat) => [cat, categoryBudgets[cat] ? String(categoryBudgets[cat]) : '']))
   );
 
+  const [showCats, setShowCats] = useState(Object.keys(categoryBudgets).length > 0);
+
   const save = () => {
     setBudgets(
       Math.round(toNumber(total)),
@@ -108,13 +110,19 @@ export const BudgetForm: React.FC<Nav> = ({ navigation }) => {
 
   return (
     <Form title="Monthly budget" onCancel={() => navigation.goBack()} onSave={save}>
-      <Field label="Total I want to spend this month" prefix="₹" keyboardType="numeric" value={total} onChangeText={setTotal} />
-      <T v="section" style={{ paddingHorizontal: 16, marginBottom: 10 }}>
-        Limits by category (optional)
-      </T>
-      {EXPENSE_CATEGORIES.map((cat) => (
-        <Field key={cat} label={cat} prefix="₹" keyboardType="numeric" value={byCat[cat]} onChangeText={(v) => setByCat({ ...byCat, [cat]: v })} />
-      ))}
+      <Field label="Total I want to spend this month" prefix="₹" keyboardType="numeric" value={total} onChangeText={setTotal} hint="We will show how much is left as you spend." />
+      {showCats ? (
+        <>
+          <T v="section" style={{ paddingHorizontal: 16, marginBottom: 10 }}>
+            Limits by category (optional)
+          </T>
+          {EXPENSE_CATEGORIES.map((cat) => (
+            <Field key={cat} label={cat} prefix="₹" keyboardType="numeric" value={byCat[cat]} onChangeText={(v) => setByCat({ ...byCat, [cat]: v })} />
+          ))}
+        </>
+      ) : (
+        <Button title="Add limits for categories" variant="secondary" style={{ marginHorizontal: 16 }} onPress={() => setShowCats(true)} />
+      )}
     </Form>
   );
 };

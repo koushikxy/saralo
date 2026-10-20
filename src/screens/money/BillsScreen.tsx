@@ -1,4 +1,5 @@
 import React from 'react';
+import { toggleBillPaid } from '../../core/payBill';
 import { View } from 'react-native';
 import { Plus, Receipt } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, Fab, Empty } from '../../ui/kit';
@@ -7,7 +8,7 @@ import { useLifeStore, billDueDate } from '../../modules/life/lifeStore';
 import { rupees } from './moneyMeta';
 
 export const BillsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { bills, togglePaid } = useLifeStore();
+  const bills = useLifeStore((s) => s.bills);
   const month = localDate().slice(0, 7);
   const sorted = [...bills].sort((a, b) => a.dueDay - b.dueDay);
   const total = bills.reduce((s, b) => s + b.amount, 0);
@@ -27,7 +28,7 @@ export const BillsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   title={b.name}
                   subtitle={`${paid ? 'Paid' : 'Due ' + billDueDate(b).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${b.amount ? ' · ' + rupees(b.amount) : ''}`}
                   checked={paid}
-                  onCheck={() => togglePaid(b.id, month)}
+                  onCheck={() => toggleBillPaid(b.id, month)}
                   onPress={() => navigation.navigate('BillForm', { id: b.id })}
                   last={i === sorted.length - 1}
                 />
