@@ -493,7 +493,7 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: 14,
     },
     prefix: { color: c.textMuted, marginRight: 6, fontWeight: '600' },
-    input: { flex: 1, color: c.ink, paddingVertical: 12 },
+    input: { flex: 1, color: c.ink, paddingVertical: 12, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null) },
     button: { height: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
     buttonText: { fontSize: 17, fontWeight: '700' },
     formHead: {

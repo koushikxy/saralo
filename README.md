@@ -1,8 +1,24 @@
-# Saralo
+<p align="center">
+  <img src="assets/icon.png" width="96" alt="Saralo icon">
+</p>
+
+<h1 align="center">Saralo</h1>
 
 A simple everyday app for people of all ages. Plan your day, track money, remember medicines and keep important documents safe, all in one place.
 
 Everything stays on your phone. No account, no ads, no tracking.
+
+<p align="center">
+  <img src="docs/screenshots/today-light.png" width="200" alt="Today">
+  <img src="docs/screenshots/planner-light.png" width="200" alt="Planner">
+  <img src="docs/screenshots/money-light.png" width="200" alt="Money">
+  <img src="docs/screenshots/health-light.png" width="200" alt="Health">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/today-dark.png" width="200" alt="Today in dark mode">
+  <img src="docs/screenshots/money-dark.png" width="200" alt="Money in dark mode">
+</p>
 
 ## What it does
 
@@ -39,10 +55,6 @@ Expo, React Native, TypeScript, React Navigation and zustand. Data is saved with
 ## Privacy
 
 See [PRIVACY.md](PRIVACY.md).
-
-## Contact
-
-koushikmaity.pvt@gmail.com
 
 ## License
 

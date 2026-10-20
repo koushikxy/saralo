@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Share, Image } from 'react-native';
+import { View, Text, TextInput, Share, Image, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Copy, Building2, CreditCard, Share2 } from 'lucide-react-native';
@@ -64,7 +64,7 @@ export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
             accessibilityLabel="Amount"
             placeholder="0"
             placeholderTextColor={c.textFaint}
-            style={{ fontSize: 40 * scale, fontWeight: '800', minWidth: 120, textAlign: 'center', color: c.ink }}
+            style={[{ fontSize: 40 * scale, fontWeight: '800', minWidth: 120, textAlign: 'center', color: c.ink }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]}
           />
         </View>
       </View>

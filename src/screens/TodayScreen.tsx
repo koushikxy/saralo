@@ -208,7 +208,7 @@ export const TodayScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           icon={Droplets}
           iconColor="#0284C7"
           title="Water"
-          subtitle={`Goal ${(targetWaterMl / 1000).toFixed(1)} L · tap Water above to add a glass`}
+          subtitle={`Goal ${(targetWaterMl / 1000).toFixed(1)} L`}
           rightText={`${(waterMl / 1000).toFixed(2).replace(/0$/, '')} L`}
           onPress={() => navigation.navigate('Health')}
           chevron

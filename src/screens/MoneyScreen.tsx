@@ -73,8 +73,8 @@ export const MoneyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </View>
 
       <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 8 }}>
-        <Button title="I spent" icon={ArrowUpRight} style={{ flex: 1, backgroundColor: c.expense }} onPress={() => navigation.navigate('TransactionForm', { kind: 'Spent' })} />
-        <Button title="I got money" icon={ArrowDownLeft} style={{ flex: 1, backgroundColor: c.income }} onPress={() => navigation.navigate('TransactionForm', { kind: 'Received' })} />
+        <Button title="I spent" icon={ArrowUpRight} style={{ flex: 1, backgroundColor: '#E11D48' }} onPress={() => navigation.navigate('TransactionForm', { kind: 'Spent' })} />
+        <Button title="I got money" icon={ArrowDownLeft} style={{ flex: 1, backgroundColor: '#047857' }} onPress={() => navigation.navigate('TransactionForm', { kind: 'Received' })} />
       </View>
 
       {bills.length > 0 ? (
