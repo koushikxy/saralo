@@ -58,11 +58,11 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
         }
         return;
       }
-      if (lockSecondsLeft() > 0) return setError(`Too many wrong tries. Wait ${lockSecondsLeft()} seconds.`);
+      if (lockSecondsLeft() > 0) return setError(`Too many wrong tries. Wait ${lockSecondsLeft()} ${lockSecondsLeft() === 1 ? 'second' : 'seconds'}.`);
       if (await checkPin(next)) set(true);
       else {
         const wait = lockSecondsLeft();
-        setError(wait > 0 ? `Too many wrong tries. Wait ${wait} seconds.` : 'Wrong PIN. Try again.');
+        setError(wait > 0 ? `Too many wrong tries. Wait ${wait} ${wait === 1 ? 'second' : 'seconds'}.` : 'Wrong PIN. Try again.');
       }
     }, 120);
   };

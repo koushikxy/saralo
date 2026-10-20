@@ -35,7 +35,7 @@ const freshest = (items: WardrobeItem[]) => [...items].sort((a, b) => Number(b.i
 const describe = (top: WardrobeItem, bottom: WardrobeItem, shoes: WardrobeItem) => {
   const loud = [top, bottom, shoes].filter((i) => !isNeutral(i));
   if (loud.length === 0) return 'All neutral colours, so everything goes together.';
-  if (loud.length === 1) return `Neutral pieces let the ${loud[0].color.toLowerCase()} ${loud[0].name.toLowerCase()} stand out.`;
+  if (loud.length === 1) return `Neutral pieces let the ${loud[0].name.toLowerCase().includes(loud[0].color.toLowerCase()) ? '' : `${loud[0].color.toLowerCase()} `}${loud[0].name.toLowerCase()} stand out.`;
   return 'Two bold colours. Works if you like a louder look.';
 };
 
@@ -84,7 +84,7 @@ export function generateCuratedOutfits(wardrobe: WardrobeItem[], occasion: Occas
     const note = weatherNote(temperature, outerwear);
     return {
       id: `outfit-${top.id}-${bottom.id}-${shoe.id}`,
-      title: `${top.name} with ${bottom.name}`,
+      title: `${top.name} with ${bottom.name.charAt(0).toLowerCase()}${bottom.name.slice(1)}`,
       occasion,
       vibe: idx === 0 ? 'Best pick for today' : 'Another option',
       harmonyScore: Math.max(50, Math.min(99, 70 + (isNeutral(top) || isNeutral(bottom) ? 15 : 0) + (dirty.length === 0 ? 10 : 0))),

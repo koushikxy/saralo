@@ -16,12 +16,12 @@ const OCCASIONS: [OccasionType, string][] = [
   ['Date Night', 'Date'],
   ['Gym & Active', 'Gym'],
 ];
-const CATEGORIES: [GarmentCategory, string, string][] = [
-  ['Tops', 'Tops', '👕'],
-  ['Bottoms', 'Bottoms', '👖'],
-  ['Shoes', 'Shoes', '👟'],
-  ['Outerwear', 'Jackets', '🧥'],
-  ['Accessories', 'Accessories', '⌚'],
+const CATEGORIES: [GarmentCategory, string, string, string][] = [
+  ['Tops', 'Tops', '👕', 'top'],
+  ['Bottoms', 'Bottoms', '👖', 'pants'],
+  ['Shoes', 'Shoes', '👟', 'shoes'],
+  ['Outerwear', 'Jackets', '🧥', 'jacket'],
+  ['Accessories', 'Accessories', '⌚', 'watch'],
 ];
 const COLORS = ['Black', 'White', 'Grey', 'Navy', 'Blue', 'Denim', 'Beige', 'Brown', 'Olive', 'Green', 'Red', 'Pink', 'Yellow', 'Other'];
 
@@ -150,7 +150,7 @@ export const ClothForm: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const save = (again: boolean) => {
     const meta = CATEGORIES.find((x) => x[1] === cat)!;
-    const finalName = name.trim() || `${color} ${meta[1].toLowerCase().replace(/s$/, '')}`;
+    const finalName = name.trim() || `${color} ${meta[3]}`;
     addWardrobeItem({
       name: finalName.charAt(0).toUpperCase() + finalName.slice(1),
       category: meta[0],
@@ -194,7 +194,7 @@ export const ClothForm: React.FC<{ navigation: any }> = ({ navigation }) => {
           })}
         </View>
       </View>
-      <Field label="Name (optional)" value={name} onChangeText={setName} hint={`If empty we call it "${color} ${cat.toLowerCase().replace(/s$/, '')}"`} />
+      <Field label="Name (optional)" value={name} onChangeText={setName} hint={`If empty we call it "${color} ${CATEGORIES.find((x) => x[1] === cat)![3]}"`} />
       <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
         {photo ? <Image source={{ uri: photo }} style={{ width: 120, height: 120, borderRadius: 14, marginBottom: 10 }} /> : null}
         <Button title={photo ? 'Change photo' : 'Add a photo (optional)'} variant="secondary" onPress={async () => {

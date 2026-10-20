@@ -235,7 +235,7 @@ export const SecurityScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               title="Change PIN"
               style={{ marginHorizontal: 16 }}
               onPress={async () => {
-                if (lockSecondsLeft() > 0) return setMsg(`Too many wrong tries. Wait ${lockSecondsLeft()} seconds.`);
+                if (lockSecondsLeft() > 0) return setMsg(`Too many wrong tries. Wait ${lockSecondsLeft()} ${lockSecondsLeft() === 1 ? 'second' : 'seconds'}.`);
                 if (!(await checkPin(current))) return setMsg('Current PIN is wrong');
                 if (!/^\d{4}$/.test(next)) return setMsg('New PIN must be 4 digits');
                 setVaultPin(await hashPin(next));
