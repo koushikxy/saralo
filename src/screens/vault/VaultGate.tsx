@@ -30,7 +30,7 @@ export const VaultGate: React.FC<{ children: React.ReactNode; onCancel?: () => v
     try {
       const level = await LocalAuthentication.getEnrolledLevelAsync();
       if (level === LocalAuthentication.SecurityLevel.NONE) return;
-      const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock your private vault' });
+      const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock your private vault', cancelLabel: 'Use Saralo PIN', disableDeviceFallback: true });
       if (res.success) set(true);
     } catch {}
   };
