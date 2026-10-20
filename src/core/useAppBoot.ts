@@ -8,6 +8,7 @@ import { useProfileStore } from '../modules/profile/profileStore';
 import { useStyleStore } from '../modules/style/styleStore';
 import { useLifeStore } from '../modules/life/lifeStore';
 import { watchReminders } from './reminders';
+import { failedReads } from './storage/persistStorage';
 import { useVaultSession } from '../screens/vault/VaultGate';
 
 const stores = [
@@ -19,21 +20,24 @@ const stores = [
   useLifeStore,
 ];
 
+const nameOf = (s: (typeof stores)[number]) => s.persist.getOptions().name ?? '';
+const settled = (s: (typeof stores)[number]) => s.persist.hasHydrated() || failedReads.has(nameOf(s));
+
 const waitForHydration = () =>
   new Promise<void>((done) => {
-    const timer = setTimeout(() => {
-      console.warn('[Saralo] Saved data took too long to load:', stores.filter((s) => !s.persist.hasHydrated()).map((s) => s.persist.getOptions().name).join(', '));
-      done();
-    }, 4000);
-    Promise.all(
-      stores.map((s) =>
-        s.persist.hasHydrated() ? null : new Promise<void>((ok) => s.persist.onFinishHydration(() => ok()))
-      )
-    ).then(() => {
-      clearTimeout(timer);
-      done();
-    });
+    const started = Date.now();
+    const check = () => {
+      if (stores.every(settled)) return done();
+      if (Date.now() - started > 8000) {
+        console.warn('[Saralo] Saved data is slow to load:', stores.filter((s) => !settled(s)).map(nameOf).join(', '));
+        return done();
+      }
+      setTimeout(check, 50);
+    };
+    check();
   });
+
+const retryFailedReads = () => stores.filter((s) => failedReads.has(nameOf(s))).forEach((s) => s.persist.rehydrate());
 
 const runDaily = () => {
   useHealthStore.getState().rolloverDay();
@@ -76,11 +80,15 @@ export const useAppBoot = () => {
     waitForHydration().then(() => {
       runDaily();
       setReady(true);
+      retryFailedReads();
       startStepCounter().then((sub) => (stepSub = sub)).catch(() => {});
       stopReminders = watchReminders();
     });
     const appSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') runDaily();
+      if (state === 'active') {
+        retryFailedReads();
+        runDaily();
+      }
       if (state === 'background') useVaultSession.getState().set(false);
     });
     return () => {

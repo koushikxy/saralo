@@ -31,14 +31,39 @@ const open = async (value: string) => {
   return CryptoJS.enc.Base64.parse(output).toString(CryptoJS.enc.Utf8);
 };
 
+export const failedReads = new Set<string>();
+
+const retry = async <T,>(task: () => Promise<T>, tries = 4): Promise<T> => {
+  try {
+    return await task();
+  } catch (e) {
+    if (tries <= 1) throw e;
+    await new Promise((r) => setTimeout(r, 250));
+    return retry(task, tries - 1);
+  }
+};
+
 const encryptedBackend = (): StateStorage => {
   const backend: StateStorage = storageBackend;
   return {
     getItem: async (name) => {
-      const value = await backend.getItem(name);
-      return value == null ? null : open(value);
+      try {
+        const value = await retry(async () => {
+          const raw = await backend.getItem(name);
+          return raw == null ? null : open(raw);
+        });
+        failedReads.delete(name);
+        return value;
+      } catch (e) {
+        failedReads.add(name);
+        console.warn(`[Saralo] Could not read ${name}:`, e instanceof Error ? e.message : e);
+        throw e;
+      }
     },
-    setItem: async (name, value) => backend.setItem(name, await seal(value)),
+    setItem: async (name, value) => {
+      if (failedReads.has(name)) return;
+      await retry(async () => backend.setItem(name, await seal(value)));
+    },
     removeItem: (name) => backend.removeItem(name),
   };
 };
