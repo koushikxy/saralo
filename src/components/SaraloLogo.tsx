@@ -1,25 +1,14 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect, Path, Circle } from 'react-native-svg';
+import Svg, { Rect, Circle } from 'react-native-svg';
 
 export const SaraloLogo: React.FC<{ size?: number }> = ({ size = 32 }) => (
   <Svg width={size} height={size} viewBox="0 0 1024 1024">
-    <Defs>
-      <LinearGradient id="saraloBg" x1="0" y1="0" x2="1" y2="1">
-        <Stop offset="0" stopColor="#6366F1" />
-        <Stop offset="1" stopColor="#4338CA" />
-      </LinearGradient>
-    </Defs>
-    <Rect width="1024" height="1024" rx="290" fill="url(#saraloBg)" />
-    <Path
-      d="M628 334 Q628 274 506 274 Q384 274 384 382 Q384 470 506 500 Q628 530 628 630 Q628 744 506 744 Q384 744 384 690"
-      stroke="#FFFFFF"
-      strokeWidth={96}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <Circle cx="726" cy="238" r="58" fill="#FBBF24" />
+    <Rect width="1024" height="1024" rx="230" fill="#0F766E" />
+    <Rect x="290" y="262" width="444" height="120" rx="60" fill="#FFFFFF" />
+    <Rect x="290" y="452" width="444" height="120" rx="60" fill="#99F6E4" />
+    <Rect x="290" y="642" width="300" height="120" rx="60" fill="#FFFFFF" />
+    <Circle cx="680" cy="702" r="60" fill="#FBBF24" />
   </Svg>
 );
 

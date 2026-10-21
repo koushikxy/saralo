@@ -16,6 +16,10 @@ export interface ProfileInfo {
   profilePhotoUri: string | null;
   passportPhotoUri: string | null;
   passportPhotoDate: string;
+  gender?: '' | 'Man' | 'Woman' | 'Other';
+  weightKg?: number;
+  activity?: '' | 'Mostly sitting' | 'Some walking' | 'Very active';
+  diet?: '' | 'Veg' | 'Eggs too' | 'Non-veg';
 }
 
 export type PasswordCategory = 'Social' | 'Finance' | 'Work' | 'Entertainment' | 'Other';
@@ -52,6 +56,7 @@ export interface VaultNote {
   title: string;
   content: string;
   tag: NoteTag;
+  imageUri?: string | null;
   isPinned: boolean;
   updatedAt: string;
 }
@@ -151,6 +156,11 @@ export interface ProfileState {
   textSize: TextSize;
   setTextSize: (size: TextSize) => void;
   requireBiometrics: boolean;
+  appLock: boolean;
+  setAppLock: (val: boolean) => void;
+  lastBackup: string;
+  setLastBackup: (day: string) => void;
+  policyAccepted: string;
   setThemeMode: (mode: ThemeMode) => void;
   setRequireBiometrics: (val: boolean) => void;
 
@@ -216,6 +226,11 @@ export const useProfileStore = create<ProfileState>()(
   textSize: 'normal',
   setTextSize: (size) => set({ textSize: size }),
   requireBiometrics: true,
+  appLock: true,
+  setAppLock: (val) => set({ appLock: val }),
+  lastBackup: '',
+  setLastBackup: (day) => set({ lastBackup: day }),
+  policyAccepted: '',
   setThemeMode: (mode) => set({ themeMode: mode }),
   setRequireBiometrics: (val) => set({ requireBiometrics: val }),
 
@@ -295,7 +310,7 @@ export const useProfileStore = create<ProfileState>()(
       passwords: [
         {
           ...pw,
-          id: `pw-${Date.now()}`,
+          id: `pw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           updatedAt: localDate(),
         },
         ...state.passwords,

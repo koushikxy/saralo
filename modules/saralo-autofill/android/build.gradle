@@ -1,0 +1,16 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.saralo'
+version = '1.0.0'
+
+android {
+  namespace "app.saralo.autofill"
+}
+
+dependencies {
+  implementation "androidx.annotation:annotation:1.9.1"
+  implementation "androidx.work:work-runtime-ktx:2.10.0"
+}

@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Platform, Text, Animated, Pressable } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -16,14 +16,17 @@ import { useAppBoot } from './src/core/useAppBoot';
 import { useProfileStore } from './src/modules/profile/profileStore';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
-import { PlannerScreen } from './src/screens/PlannerScreen';
+import { PlannerScreen, RemindersScreen, ShoppingScreen, SpecialDaysScreen } from './src/screens/PlannerScreen';
 import { MoneyScreen } from './src/screens/MoneyScreen';
 import { HealthScreen } from './src/screens/HealthScreen';
-import { MoreScreen, ProfileForm, MedicalIdScreen, AppearanceScreen, SecurityScreen, BackupScreen, PrivacyScreen } from './src/screens/MoreScreen';
-import { OutfitsScreen, ClothForm } from './src/screens/OutfitsScreen';
+import { MoreScreen, ProfileScreen, ProfileForm, MedicalIdForm, MedicalIdScreen, AppearanceScreen, SecurityScreen, BackupScreen, PrivacyScreen } from './src/screens/MoreScreen';
+import { OutfitsScreen, ClothForm, ClothItemScreen } from './src/screens/OutfitsScreen';
 import { BillsScreen } from './src/screens/money/BillsScreen';
-import { GymScreen, WorkoutForm } from './src/screens/GymScreens';
-import { VaultListScreen, VaultFormScreen } from './src/screens/vault/VaultScreens';
+import { GymScreen, WorkoutForm, LiftHistoryScreen } from './src/screens/GymScreens';
+import { VaultListScreen, VaultFormScreen, VaultItemScreen } from './src/screens/vault/VaultScreens';
+import { LockPad } from './src/screens/vault/VaultGate';
+import { useVaultSession } from './src/core/security/session';
+import { Intro } from './src/components/Intro';
 import { TodoForm, ReminderForm, EventForm } from './src/screens/forms/PlannerForms';
 import { MedicineForm, BillForm, SpecialDayForm } from './src/screens/forms/LifeForms';
 import { TransactionForm, BudgetForm, UpiScreen, AccountsScreen, AccountForm } from './src/screens/forms/MoneyForms';
@@ -57,6 +60,7 @@ const FORMS = {
   ActivityForm,
   GoalsForm,
   ProfileForm,
+  MedicalIdForm,
   ClothForm,
   WorkoutForm,
   VaultForm: VaultFormScreen,
@@ -64,11 +68,18 @@ const FORMS = {
 
 const PAGES = {
   Bills: BillsScreen,
+  RemindersList: RemindersScreen,
+  ShoppingList: ShoppingScreen,
+  SpecialDaysList: SpecialDaysScreen,
   Upi: UpiScreen,
   Accounts: AccountsScreen,
   Outfits: OutfitsScreen,
+  ClothItem: ClothItemScreen,
   Gym: GymScreen,
+  LiftHistory: LiftHistoryScreen,
   VaultList: VaultListScreen,
+  VaultItem: VaultItemScreen,
+  Profile: ProfileScreen,
   MedicalId: MedicalIdScreen,
   Appearance: AppearanceScreen,
   Security: SecurityScreen,
@@ -76,45 +87,78 @@ const PAGES = {
   Privacy: PrivacyScreen,
 };
 
-function MainTabs() {
+const TabButton: React.FC<{ name: string; icon: (typeof TABS)[number]['icon']; focused: boolean; onPress: () => void }> = ({ name, icon: I, focused, onPress }) => {
   const c = useColors();
   const scale = useTextScale();
   const styles = useStyles(makeStyles);
-  const insets = useSafeAreaInsets();
-  const bottom = Math.max(insets.bottom, 8);
+  const on = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(on, { toValue: focused ? 1 : 0, speed: 16, bounciness: 6, useNativeDriver: true }).start();
+  }, [focused]);
+
+  const press = () => {
+    Animated.sequence([
+      Animated.timing(pop, { toValue: 0.82, duration: 70, useNativeDriver: true }),
+      Animated.spring(pop, { toValue: 1, speed: 20, bounciness: 14, useNativeDriver: true }),
+    ]).start();
+    onPress();
+  };
 
   return (
+    <Pressable onPress={press} style={styles.tabItem} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={name}>
+      <View style={styles.tabPillBox}>
+        <Animated.View style={[styles.tabPill, { opacity: on, transform: [{ scaleX: on.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }]} />
+        <Animated.View style={{ transform: [{ scale: pop }] }}>
+          <I size={24} color={focused ? c.accent : c.textMuted} strokeWidth={focused ? 2.4 : 1.9} />
+        </Animated.View>
+      </View>
+      <Text style={[styles.tabLabel, { fontSize: 12 * Math.min(scale, 1.15) }, focused && { color: c.ink, fontWeight: '700' }]} numberOfLines={1}>
+        {name}
+      </Text>
+    </Pressable>
+  );
+};
+
+function TabBar({ state, navigation }: BottomTabBarProps) {
+  const styles = useStyles(makeStyles);
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.tabBar, { paddingBottom: 10 + insets.bottom }]}>
+      {state.routes.map((route, i) => {
+        const tab = TABS.find((t) => t.name === route.name)!;
+        const focused = state.index === i;
+        return (
+          <TabButton
+            key={route.key}
+            name={route.name}
+            icon={tab.icon}
+            focused={focused}
+            onPress={() => {
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+function MainTabs() {
+  return (
     <Tab.Navigator
+      tabBar={(props) => <TabBar {...props} />}
       screenListeners={{
         tabPress: () => {
           if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
         },
       }}
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: [styles.tabBar, { height: 64 + bottom, paddingBottom: bottom }],
-      }}
+      screenOptions={{ headerShown: false, freezeOnBlur: true }}
     >
-      {TABS.map(({ name, component, icon: I }) => (
-        <Tab.Screen
-          key={name}
-          name={name}
-          component={component}
-          options={{
-            tabBarAccessibilityLabel: name,
-            tabBarIcon: ({ focused }) => (
-              <View style={styles.tabItem}>
-                <View style={[styles.tabPill, focused && { backgroundColor: c.accentSoft }]}>
-                  <I size={24} color={focused ? c.accent : c.textMuted} strokeWidth={focused ? 2.4 : 1.9} />
-                </View>
-                <Text style={[styles.tabLabel, { fontSize: 12 * Math.min(scale, 1.15) }, focused && { color: c.ink, fontWeight: '700' }]} numberOfLines={1}>
-                  {name}
-                </Text>
-              </View>
-            ),
-          }}
-        />
+      {TABS.map(({ name, component }) => (
+        <Tab.Screen key={name} name={name} component={component} />
       ))}
     </Tab.Navigator>
   );
@@ -124,12 +168,15 @@ export default function App() {
   const booted = useAppBoot();
   const [fontsLoaded, fontError] = useFonts({ GrandHotel_400Regular });
   const ready = booted && (fontsLoaded || !!fontError);
-
-  useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+  const [intro, setIntro] = useState(true);
   const c = useColors();
   const hasName = useProfileStore((s) => !!s.profile.name.trim());
+  const appLock = useProfileStore((s) => s.appLock);
+  const appUnlocked = useVaultSession((s) => s.appUnlocked);
+  const unlockApp = useVaultSession((s) => s.unlockApp);
+  const locked = hasName && appLock && !appUnlocked;
+  const opened = useRef(false);
+  if (ready && hasName && !locked) opened.current = true;
 
   return (
     <SafeAreaProvider>
@@ -137,7 +184,7 @@ export default function App() {
         <StatusBar style={c.dark ? 'light' : 'dark'} />
         {!ready ? null : !hasName ? (
           <WelcomeScreen />
-        ) : (
+        ) : !opened.current ? null : (
           <NavigationContainer
             theme={{
               ...(c.dark ? DarkTheme : DefaultTheme),
@@ -155,6 +202,12 @@ export default function App() {
             </Stack.Navigator>
           </NavigationContainer>
         )}
+        {ready && locked ? (
+          <View style={StyleSheet.absoluteFill}>
+            <LockPad onUnlock={unlockApp} />
+          </View>
+        ) : null}
+        {intro ? <Intro ready={ready} onDone={() => setIntro(false)} /> : null}
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -162,8 +215,9 @@ export default function App() {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    tabBar: { backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 6, elevation: 0 },
-    tabItem: { alignItems: 'center', justifyContent: 'center', width: 72, gap: 2 },
-    tabPill: { width: 60, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    tabBar: { flexDirection: 'row', backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 10 },
+    tabItem: { flex: 1, alignItems: 'center', gap: 4 },
+    tabPillBox: { width: 64, height: 32, alignItems: 'center', justifyContent: 'center' },
+    tabPill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, backgroundColor: c.accentSoft },
     tabLabel: { fontWeight: '500', color: c.textMuted },
   });

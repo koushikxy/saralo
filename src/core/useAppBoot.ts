@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useHealthStore } from '../modules/health/healthStore';
 import { useWalletStore } from '../modules/wallet/walletStore';
 import { useFinanceOpsStore } from '../modules/finance/financeStore';
@@ -9,8 +10,9 @@ import { useStyleStore } from '../modules/style/styleStore';
 import { useLifeStore } from '../modules/life/lifeStore';
 import { useFitnessStore } from '../modules/fitness/fitnessStore';
 import { watchReminders } from './reminders';
-import { failedReads } from './storage/persistStorage';
-import { useVaultSession } from '../screens/vault/VaultGate';
+import { watchAutofill, importSavedLogins } from './autofill';
+import { failedReads, flushWrites } from './storage/persistStorage';
+import { useVaultSession } from './security/session';
 
 const stores = [
   useHealthStore,
@@ -21,6 +23,8 @@ const stores = [
   useLifeStore,
   useFitnessStore,
 ];
+
+const LOCK_AFTER_MS = 15000;
 
 const nameOf = (s: (typeof stores)[number]) => s.persist.getOptions().name ?? '';
 const settled = (s: (typeof stores)[number]) => s.persist.hasHydrated() || failedReads.has(nameOf(s));
@@ -65,11 +69,36 @@ const startStepCounter = async () => {
     return Pedometer.watchStepCount(sync);
   }
 
+  const native = requireOptionalNativeModule<{ readSteps?: () => Promise<number>; startStepTracking: () => void }>('SaraloAutofill');
+  if (native?.readSteps) {
+    native.startStepTracking();
+    const read = () =>
+      native.readSteps!()
+        .then((steps) => steps >= 0 && useHealthStore.getState().setTodaySteps(steps))
+        .catch(() => {});
+    read();
+    const timer = setInterval(() => AppState.currentState === 'active' && read(), 15000);
+    const sub = AppState.addEventListener('change', (state) => state === 'active' && read());
+    return {
+      remove: () => {
+        clearInterval(timer);
+        sub.remove();
+      },
+    };
+  }
+
   let last = 0;
+  let counted = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
   return Pedometer.watchStepCount(({ steps }) => {
-    useHealthStore.getState().rolloverDay();
-    useHealthStore.getState().addSteps(steps - last);
-    last = steps;
+    counted = steps;
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      useHealthStore.getState().rolloverDay();
+      useHealthStore.getState().addSteps(counted - last);
+      last = counted;
+    }, 3000);
   });
 };
 
@@ -80,24 +109,36 @@ export const useAppBoot = () => {
   useEffect(() => {
     let stepSub: { remove: () => void } | null = null;
     let stopReminders: (() => void) | null = null;
+    let stopAutofill: (() => void) | null = null;
     waitForHydration().then(() => {
       runDaily();
       setReady(true);
       retryFailedReads();
       startStepCounter().then((sub) => (stepSub = sub)).catch(() => {});
       stopReminders = watchReminders();
+      stopAutofill = watchAutofill();
     });
+    let leftAt = 0;
     const appSub = AppState.addEventListener('change', (state) => {
+      const session = useVaultSession.getState();
       if (state === 'active') {
+        if (leftAt && Date.now() - leftAt > LOCK_AFTER_MS && !session.picking) session.lockAll();
+        leftAt = 0;
         retryFailedReads();
         runDaily();
+        importSavedLogins();
       }
-      if (state === 'background' && !useVaultSession.getState().picking) useVaultSession.getState().set(false);
+      if (state !== 'active') flushWrites();
+      if (state === 'background') {
+        leftAt = Date.now();
+        if (!session.picking) session.set(false);
+      }
     });
     return () => {
       appSub.remove();
       stepSub?.remove();
       stopReminders?.();
+      stopAutofill?.();
     };
   }, []);
 

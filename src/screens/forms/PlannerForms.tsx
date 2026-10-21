@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { pickIcon } from '../../ui/pickIcons';
+import { useShallow } from 'zustand/react/shallow';
 import { View } from 'react-native';
 import { Form, Field, Pick, T, Button } from '../../ui/kit';
 import { WhenPicker } from '../../components/WhenPicker';
 import { useFinanceOpsStore, TodoCategory, TodoPriority, DayOfWeek, EventType } from '../../modules/finance/financeStore';
 import { localDate, repeatText } from '../../core/date';
+import { readQuick } from '../../core/quickAdd';
 import { confirmAction } from '../../core/confirm';
 import { TouchableOpacity } from '../../components/Touchable';
 import { useColors } from '../../core/theme';
@@ -16,7 +19,7 @@ const WEEK: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const EVENT_TYPES: EventType[] = ['Personal', 'Work', 'Meeting', 'Birthday', 'Class', 'Exam'];
 
 export const TodoForm: React.FC<Nav> = ({ navigation, route }) => {
-  const { todos, addTodo, updateTodo, deleteTodo } = useFinanceOpsStore();
+  const { todos, addTodo, updateTodo, deleteTodo } = useFinanceOpsStore(useShallow(({ todos, addTodo, updateTodo, deleteTodo }) => ({ todos, addTodo, updateTodo, deleteTodo })));
   const existing = todos.find((t) => t.id === route.params?.id);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [date, setDate] = useState(existing?.dueDate ?? route.params?.date ?? localDate());
@@ -24,8 +27,17 @@ export const TodoForm: React.FC<Nav> = ({ navigation, route }) => {
   const [category, setCategory] = useState<TodoCategory>(existing?.category ?? 'Personal');
   const [priority, setPriority] = useState<TodoPriority>(existing?.priority ?? 'Medium');
 
+  const quick = existing ? null : readQuick(title);
+  const typeTitle = (v: string) => {
+    setTitle(v);
+    if (existing) return;
+    const found = readQuick(v);
+    if (found.date) setDate(found.date);
+    if (found.time) setTime(found.time);
+  };
+
   const save = () => {
-    const data = { title: title.trim(), dueDate: date, dueTime: time || undefined, category, priority };
+    const data = { title: (quick && (quick.date || quick.time) ? quick.title : title).trim(), dueDate: date, dueTime: time || undefined, category, priority };
     if (existing) updateTodo(existing.id, data);
     else addTodo(data);
     navigation.goBack();
@@ -33,14 +45,23 @@ export const TodoForm: React.FC<Nav> = ({ navigation, route }) => {
 
   return (
     <Form title={existing ? 'Edit to-do' : 'New to-do'} onCancel={() => navigation.goBack()} onSave={save} canSave={!!title.trim()}>
-      <Field label="What do you need to do?" value={title} onChangeText={setTitle} autoFocus={!existing} returnKeyType="done" onSubmitEditing={() => title.trim() && save()} />
+      <Field
+        label="What do you need to do?"
+        value={title}
+        onChangeText={typeTitle}
+        autoFocus={!existing}
+        returnKeyType="done"
+        maxLength={80}
+        onSubmitEditing={() => title.trim() && save()}
+        hint={quick && (quick.date || quick.time) ? `Saving as "${quick.title}", ${[quick.date && (quick.date === localDate() ? 'today' : quick.date === localDate(new Date(Date.now() + 86400000)) ? 'tomorrow' : new Date(`${quick.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })), quick.time].filter(Boolean).join(' at ')}` : existing ? undefined : 'Tip: type "tomorrow 9am" or "on Friday" and we set the date for you'}
+      />
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
         <T v="section" style={{ marginBottom: 8 }}>
           When
         </T>
         <WhenPicker date={date} onChangeDate={setDate} time={time} onChangeTime={setTime} />
       </View>
-      <Pick label="Type" options={CATEGORIES} value={category} onChange={(v) => setCategory(v as TodoCategory)} />
+      <Pick label="Type" options={CATEGORIES} value={category} onChange={(v) => setCategory(v as TodoCategory)} meta={pickIcon} />
       <Pick label="How important" options={PRIORITIES} value={priority} onChange={(v) => setPriority(v as TodoPriority)} />
       {existing ? (
         <Button
@@ -59,7 +80,7 @@ export const TodoForm: React.FC<Nav> = ({ navigation, route }) => {
 
 export const ReminderForm: React.FC<Nav> = ({ navigation, route }) => {
   const c = useColors();
-  const { alarms, addAlarm, updateAlarm, deleteAlarm } = useFinanceOpsStore();
+  const { alarms, addAlarm, updateAlarm, deleteAlarm } = useFinanceOpsStore(useShallow(({ alarms, addAlarm, updateAlarm, deleteAlarm }) => ({ alarms, addAlarm, updateAlarm, deleteAlarm })));
   const existing = alarms.find((a) => a.id === route.params?.id);
   const [label, setLabel] = useState(existing?.label ?? '');
   const [time, setTime] = useState(existing?.time ?? '9:00 AM');
@@ -123,7 +144,7 @@ export const ReminderForm: React.FC<Nav> = ({ navigation, route }) => {
 };
 
 export const EventForm: React.FC<Nav> = ({ navigation, route }) => {
-  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = useFinanceOpsStore();
+  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = useFinanceOpsStore(useShallow(({ calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent }) => ({ calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent })));
   const existing = calendarEvents.find((e) => e.id === route.params?.id);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [date, setDate] = useState(existing?.date ?? route.params?.date ?? localDate());
@@ -150,7 +171,7 @@ export const EventForm: React.FC<Nav> = ({ navigation, route }) => {
         <WhenPicker time={end} onChangeTime={setEnd} timeLabel="Add end time" />
       </View>
       <Field label="Place (optional)" value={place} onChangeText={setPlace} />
-      <Pick label="Type" options={EVENT_TYPES} value={type} onChange={(v) => setType(v as EventType)} />
+      <Pick label="Type" options={EVENT_TYPES} value={type} onChange={(v) => setType(v as EventType)} meta={pickIcon} />
       {existing ? (
         <Button
           title="Delete event"

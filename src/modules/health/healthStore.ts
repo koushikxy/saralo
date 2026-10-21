@@ -49,6 +49,11 @@ export interface HealthState {
   loggedSets: ExerciseSet[];
   day: string;
   stepSensor: boolean;
+  setTodaySteps: (steps: number) => void;
+  history: { day: string; steps: number; waterMl: number }[];
+  waterReminders: boolean;
+  setWaterReminders: (on: boolean) => void;
+  recentFoods: string[];
   
   addMeal: (meal: Omit<Meal, 'id'>) => void;
   removeMeal: (id: string) => void;
@@ -57,7 +62,8 @@ export interface HealthState {
   setSteps: (steps: number) => void;
   addSteps: (steps: number) => void;
   rolloverDay: () => void;
-  setTargets: (targets: Partial<Pick<HealthState, 'targetCalories' | 'targetWaterMl' | 'targetSleepHours' | 'targetSteps'>>) => void;
+  setTargets: (targets: Partial<Pick<HealthState, 'targetCalories' | 'targetWaterMl' | 'targetSleepHours' | 'targetSteps' | 'targetProtein' | 'weightGoal'>>) => void;
+  weightGoal: 'Lose weight' | 'Keep weight' | 'Gain weight';
   addExerciseSet: (set: Omit<ExerciseSet, 'id'>) => void;
 }
 
@@ -65,6 +71,7 @@ export const useHealthStore = create<HealthState>()(
   persist((set, get) => ({
   targetCalories: 2000,
   targetProtein: 60,
+  weightGoal: 'Keep weight',
   targetCarbs: 250,
   targetFats: 65,
 
@@ -83,6 +90,14 @@ export const useHealthStore = create<HealthState>()(
   deleteActivity: (id) => set((state) => ({ activities: state.activities.filter((x) => x.id !== id) })),
   day: localDate(),
   stepSensor: false,
+  history: [],
+  waterReminders: false,
+  setWaterReminders: (on) => set({ waterReminders: on }),
+  recentFoods: [],
+  setTodaySteps: (steps) => {
+    get().rolloverDay();
+    set({ steps: Math.max(get().steps, steps) });
+  },
 
   addMeal: (newMeal) => {
     const meal: Meal = { ...newMeal, id: Date.now().toString() };
@@ -112,8 +127,10 @@ export const useHealthStore = create<HealthState>()(
   setTargets: (targets) => set(targets),
 
   rolloverDay: () => {
-    if (get().day === localDate()) return;
-    set({ day: localDate(), meals: [], waterMl: 0, sleepHours: 0, steps: 0 });
+    const { day, steps, waterMl, history } = get();
+    if (day === localDate()) return;
+    const kept = [...history.filter((h) => h.day !== day), { day, steps, waterMl }].slice(-60);
+    set({ day: localDate(), meals: [], waterMl: 0, sleepHours: 0, steps: 0, history: kept });
   },
 
   addExerciseSet: (newSet) => {

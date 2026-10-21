@@ -1,13 +1,15 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, TextInput, Modal, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useShallow } from 'zustand/react/shallow';
+import { View, TextInput, Modal, ScrollView, Platform, Vibration } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dumbbell, Plus, Trophy, Trash2, X, Repeat } from 'lucide-react-native';
+import { Dumbbell, Plus, Trophy, Trash2, X, Repeat, Check, Timer, TrendingUp } from 'lucide-react-native';
 import { Screen, AppBar, Section, Row, Fab, Empty, T, Button, Chips, Form, Field, ToggleRow } from '../ui/kit';
 import { TouchableOpacity } from '../components/Touchable';
 import { useColors, useTextScale } from '../core/theme';
 import { localDate } from '../core/date';
 import { confirmAction } from '../core/confirm';
-import { useFitnessStore, EXERCISES, WorkoutExercise, lastTime, bestLift, describeSets } from '../modules/fitness/fitnessStore';
+import { useFitnessStore, EXERCISES, WorkoutExercise, lastTime, bestLift, describeSets, estMax, muscleOf, suggestNext, liftHistory } from '../modules/fitness/fitnessStore';
 
 const weekStart = () => {
   const d = new Date();
@@ -26,7 +28,7 @@ const dayLabel = (date: string) => {
 };
 
 export const GymScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { workouts, routines, deleteWorkout, deleteRoutine } = useFitnessStore();
+  const { workouts, routines, deleteWorkout, deleteRoutine } = useFitnessStore(useShallow(({ workouts, routines, deleteWorkout, deleteRoutine }) => ({ workouts, routines, deleteWorkout, deleteRoutine })));
   const thisWeek = workouts.filter((w) => w.date >= weekStart());
   const mins = thisWeek.reduce((m, w) => m + w.minutes, 0);
   const names = [...new Set(workouts.flatMap((w) => w.exercises.map((e) => e.name)))];
@@ -35,19 +37,78 @@ export const GymScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     .filter((b) => b.best && b.best.kg > 0)
     .sort((a, b) => b.best!.kg - a.best!.kg)
     .slice(0, 6);
+  const c = useColors();
+  const monday = weekStart();
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${monday}T00:00:00`);
+    d.setDate(d.getDate() + i);
+    return localDate(d);
+  });
+  const trained = new Set(workouts.map((w) => w.date));
+  let streak = 0;
+  for (let k = 0; k < 52; k++) {
+    const start = new Date(`${monday}T00:00:00`);
+    start.setDate(start.getDate() - 7 * k);
+    const from = localDate(start);
+    start.setDate(start.getDate() + 6);
+    const to = localDate(start);
+    if (workouts.some((w) => w.date >= from && w.date <= to)) streak++;
+    else if (k > 0) break;
+  }
+  const muscleSets = Object.entries(
+    thisWeek.flatMap((w) => w.exercises).reduce<Record<string, number>>((acc, e) => ({ ...acc, [muscleOf(e.name)]: (acc[muscleOf(e.name)] || 0) + e.sets.length }), {})
+  ).sort((a, b) => b[1] - a[1]);
+  const maxSets = Math.max(10, ...muscleSets.map((m) => m[1]));
 
   return (
     <View style={{ flex: 1 }}>
       <Screen>
         <AppBar title="Gym" onBack={() => navigation.goBack()} />
-        <View style={{ paddingHorizontal: 16, flexDirection: 'row', gap: 10, marginBottom: 8 }}>
-          {[
-            [String(thisWeek.length), thisWeek.length === 1 ? 'workout this week' : 'workouts this week'],
-            [String(mins), mins === 1 ? 'minute this week' : 'minutes this week'],
-          ].map(([n, l]) => (
-            <Stat key={l} value={n} label={l} />
-          ))}
+        <View style={{ marginHorizontal: 16, padding: 16, borderRadius: 22, backgroundColor: c.card }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {week.map((d) => (
+              <View key={d} style={{ alignItems: 'center', gap: 6 }}>
+                <T v="caption">{new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'narrow' })}</T>
+                <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: trained.has(d) ? c.accent : c.soft, borderWidth: d === localDate() ? 1.5 : 0, borderColor: c.accent }}>
+                  {trained.has(d) ? <Check size={16} color="#FFFFFF" strokeWidth={3} /> : <T v="caption">{Number(d.slice(8))}</T>}
+                </View>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', marginTop: 16, gap: 8 }}>
+            {[
+              [String(thisWeek.length), thisWeek.length === 1 ? 'workout' : 'workouts'],
+              [String(mins), 'minutes'],
+              [String(streak), streak === 1 ? 'week streak' : 'weeks streak'],
+            ].map(([n, l]) => (
+              <View key={l} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14, backgroundColor: c.soft }}>
+                <T v="h2">{n}</T>
+                <T v="caption">{l}</T>
+              </View>
+            ))}
+          </View>
         </View>
+
+        {muscleSets.length ? (
+          <Section title="Sets per muscle this week">
+            <View style={{ padding: 16, gap: 10 }}>
+              {muscleSets.map(([m, n]) => (
+                <View key={m} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <T v="sub" style={{ width: 80 }}>
+                    {m}
+                  </T>
+                  <View style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: c.soft, overflow: 'hidden' }}>
+                    <View style={{ width: `${(n / maxSets) * 100}%`, height: 10, borderRadius: 5, backgroundColor: n >= 10 ? c.income : c.accent }} />
+                  </View>
+                  <T v="strong" style={{ width: 28, textAlign: 'right' }}>
+                    {n}
+                  </T>
+                </View>
+              ))}
+              <T v="caption">About 10 or more hard sets a week per muscle is a common goal for building strength.</T>
+            </View>
+          </Section>
+        ) : null}
 
         <Section title="Start from a routine">
           {routines.length === 0 ? (
@@ -72,7 +133,7 @@ export const GymScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {bests.length > 0 ? (
           <Section title="Your best lifts">
             {bests.map((b, i) => (
-              <Row key={b.name} icon={Trophy} iconColor="#CA8A04" title={b.name} rightText={`${b.best!.kg} kg × ${b.best!.reps}`} last={i === bests.length - 1} />
+              <Row key={b.name} icon={Trophy} iconColor="#CA8A04" title={b.name} subtitle={`Best ${b.best!.kg} kg × ${b.best!.reps} · est. max ${estMax(b.best!)} kg`} chevron onPress={() => navigation.navigate('LiftHistory', { name: b.name })} last={i === bests.length - 1} />
             ))}
           </Section>
         ) : null}
@@ -135,13 +196,50 @@ const NumBox: React.FC<{ value: string; onChange: (v: string) => void; label: st
   );
 };
 
-type Draft = { name: string; sets: { kg: string; reps: string }[] };
+type Draft = { name: string; sets: { kg: string; reps: string; done?: boolean }[] };
+
+const REST_SECONDS = 90;
+
+const RestTimer: React.FC<{ endsAt: number; onChange: (endsAt: number | null) => void }> = ({ endsAt, onChange }) => {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  useEffect(() => {
+    if (left > 0) return;
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    Vibration.vibrate([0, 300, 150, 300]);
+    onChange(null);
+  }, [left]);
+  const btn = (label: string, onPress: () => void) => (
+    <TouchableOpacity onPress={onPress} style={{ paddingHorizontal: 14, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center' }} accessibilityLabel={label}>
+      <T v="strong" color="#FFFFFF">
+        {label}
+      </T>
+    </TouchableOpacity>
+  );
+  return (
+    <View style={{ position: 'absolute', left: 12, right: 12, bottom: 12 + insets.bottom, borderRadius: 20, backgroundColor: c.accent, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8, elevation: 8 }}>
+      <Timer size={22} color="#FFFFFF" />
+      <T v="h2" color="#FFFFFF" style={{ flex: 1 }}>
+        Rest {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+      </T>
+      {btn('−15', () => onChange(Math.max(Date.now() + 1000, endsAt - 15000)))}
+      {btn('+15', () => onChange(endsAt + 15000))}
+      {btn('Skip', () => onChange(null))}
+    </View>
+  );
+};
 
 const toDraft = (e: WorkoutExercise): Draft => ({ name: e.name, sets: e.sets.map((s) => ({ kg: s.kg ? String(s.kg) : '', reps: s.reps ? String(s.reps) : '' })) });
 
 export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const c = useColors();
-  const { workouts, routines, saveWorkout, saveRoutine } = useFitnessStore();
+  const { workouts, routines, saveWorkout, saveRoutine } = useFitnessStore(useShallow(({ workouts, routines, saveWorkout, saveRoutine }) => ({ workouts, routines, saveWorkout, saveRoutine })));
   const existing = workouts.find((w) => w.id === route.params?.workoutId);
   const routine = routines.find((r) => r.id === route.params?.routineId);
   const started = useRef(Date.now());
@@ -156,6 +254,8 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
   );
   const [picking, setPicking] = useState(false);
   const [asRoutine, setAsRoutine] = useState(false);
+  const [restUntil, setRestUntil] = useState<number | null>(null);
+  const others = existing ? workouts.filter((w) => w.id !== existing.id) : workouts;
 
   const update = (i: number, fn: (d: Draft) => Draft) => setItems(items.map((d, j) => (j === i ? fn(d) : d)));
   const addExercise = (name: string) => {
@@ -194,12 +294,28 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
         <Field label="Name (optional)" value={title} onChangeText={setTitle} hint="For example: Push day, Legs, Full body" />
         {items.map((d, i) => {
           const prev = lastTime(workouts, d.name, existing?.id);
+          const best = bestLift(others, d.name);
           return (
             <View key={`${d.name}-${i}`} style={{ paddingHorizontal: 16, marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <T v="strong">{d.name}</T>
                   <T v="caption">{prev ? `Last time: ${describeSets(prev)}` : 'First time doing this'}</T>
+                  {!existing && suggestNext(prev) ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const sg = suggestNext(prev)!;
+                        update(i, (x) => ({ ...x, sets: x.sets.map((y) => (y.done ? y : { ...y, kg: sg.kg ? String(sg.kg) : y.kg, reps: String(sg.reps) })) }));
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: c.accentSoft }}
+                      accessibilityLabel="Use the suggested weight"
+                    >
+                      <TrendingUp size={14} color={c.accent} />
+                      <T v="caption" color={c.accent} style={{ fontWeight: '700' }}>
+                        Try {suggestNext(prev)!.kg ? `${suggestNext(prev)!.kg} kg × ` : ''}{suggestNext(prev)!.reps} · {suggestNext(prev)!.why}
+                      </T>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
                 <TouchableOpacity onPress={() => setItems(items.filter((_, j) => j !== i))} accessibilityLabel={`Remove ${d.name}`} style={{ padding: 8 }}>
                   <Trash2 size={20} color={c.textMuted} />
@@ -218,18 +334,27 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
                 <View style={{ width: 36 }} />
               </View>
               {d.sets.map((s, k) => (
-                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <T v="strong" style={{ width: 40 }}>
-                    {k + 1}
-                  </T>
+                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8, opacity: s.done ? 0.75 : 1 }}>
+                  <View style={{ width: 40 }}>
+                    <T v="strong">{k + 1}</T>
+                    {best && Number(s.kg) > best.kg && Number(s.reps) > 0 ? (
+                      <T v="caption" color={c.income} style={{ fontSize: 10, fontWeight: '700' }}>
+                        BEST
+                      </T>
+                    ) : null}
+                  </View>
                   <NumBox label={`Set ${k + 1} kg`} value={s.kg} onChange={(v) => update(i, (x) => ({ ...x, sets: x.sets.map((y, m) => (m === k ? { ...y, kg: v } : y)) }))} />
                   <NumBox label={`Set ${k + 1} reps`} value={s.reps} onChange={(v) => update(i, (x) => ({ ...x, sets: x.sets.map((y, m) => (m === k ? { ...y, reps: v } : y)) }))} />
                   <TouchableOpacity
-                    onPress={() => update(i, (x) => ({ ...x, sets: x.sets.filter((_, m) => m !== k) }))}
-                    accessibilityLabel={`Remove set ${k + 1}`}
-                    style={{ width: 36, alignItems: 'center' }}
+                    onPress={() => {
+                      update(i, (x) => ({ ...x, sets: x.sets.map((y, m) => (m === k ? { ...y, done: !y.done } : y)) }));
+                      if (!s.done && (Number(s.reps) > 0 || Number(s.kg) > 0)) setRestUntil(Date.now() + REST_SECONDS * 1000);
+                    }}
+                    onLongPress={() => update(i, (x) => ({ ...x, sets: x.sets.filter((_, m) => m !== k) }))}
+                    accessibilityLabel={s.done ? `Set ${k + 1} done. Long press to remove` : `Mark set ${k + 1} done. Long press to remove`}
+                    style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: s.done ? c.income : c.soft }}
                   >
-                    <X size={18} color={c.textMuted} />
+                    <Check size={18} color={s.done ? '#FFFFFF' : c.textMuted} strokeWidth={3} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -238,7 +363,7 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
                 variant="secondary"
                 icon={Plus}
                 style={{ height: 44, marginTop: 2 }}
-                onPress={() => update(i, (x) => ({ ...x, sets: [...x.sets, { ...(x.sets[x.sets.length - 1] ?? { kg: '', reps: '' }) }] }))}
+                onPress={() => update(i, (x) => ({ ...x, sets: [...x.sets, { ...(x.sets[x.sets.length - 1] ?? { kg: '', reps: '' }), done: false }] }))}
               />
             </View>
           );
@@ -250,6 +375,7 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
           </View>
         ) : null}
       </Form>
+      {restUntil ? <RestTimer endsAt={restUntil} onChange={setRestUntil} /> : null}
       <ExercisePicker visible={picking} onClose={() => setPicking(false)} onPick={addExercise} />
     </>
   );
@@ -258,7 +384,7 @@ export const WorkoutForm: React.FC<{ navigation: any; route: any }> = ({ navigat
 const ExercisePicker: React.FC<{ visible: boolean; onClose: () => void; onPick: (name: string) => void }> = ({ visible, onClose, onPick }) => {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { customExercises, addCustomExercise } = useFitnessStore();
+  const { customExercises, addCustomExercise } = useFitnessStore(useShallow(({ customExercises, addCustomExercise }) => ({ customExercises, addCustomExercise })));
   const groups = useMemo(() => ({ ...EXERCISES, ...(customExercises.length ? { Mine: customExercises } : {}) }), [customExercises]);
   const [group, setGroup] = useState('Chest');
   const [custom, setCustom] = useState('');
@@ -287,5 +413,44 @@ const ExercisePicker: React.FC<{ visible: boolean; onClose: () => void; onPick: 
         </ScrollView>
       </View>
     </Modal>
+  );
+};
+
+export const LiftHistoryScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
+  const c = useColors();
+  const workouts = useFitnessStore((st) => st.workouts);
+  const name: string = route.params?.name ?? '';
+  const history = liftHistory(workouts, name);
+  const top = Math.max(1, ...history.map((h) => h.max));
+  const recent = history.slice(-12);
+  return (
+    <Screen padBottom={40}>
+      <AppBar title={name} onBack={() => navigation.goBack()} />
+      {history.length ? (
+        <>
+          <View style={{ marginHorizontal: 16, padding: 16, borderRadius: 22, backgroundColor: c.card }}>
+            <T v="caption">Estimated max</T>
+            <T v="big">{history[history.length - 1].max} kg</T>
+            {recent.length > 1 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 110, marginTop: 14 }}>
+                {recent.map((h, i) => (
+                  <View key={`${h.date}-${i}`} style={{ width: 22, height: `${Math.max(6, (h.max / top) * 100)}%`, borderRadius: 6, backgroundColor: i === recent.length - 1 ? c.accent : c.accent + '77' }} />
+                ))}
+              </View>
+            ) : null}
+            <T v="caption" style={{ marginTop: 6 }}>
+              {recent.length > 1 ? `Last ${recent.length} sessions. ` : 'Log this lift again to see a progress chart. '}Estimated with the Epley formula from your best set.
+            </T>
+          </View>
+          <Section title="Sessions">
+            {[...history].reverse().map((h, i, list) => (
+              <Row key={`${h.date}-${i}`} title={dayLabel(h.date)} subtitle={`Best set ${h.best.kg} kg × ${h.best.reps} · volume ${Math.round(h.volume)} kg`} rightText={`${h.max} kg`} last={i === list.length - 1} />
+            ))}
+          </Section>
+        </>
+      ) : (
+        <Empty icon={Dumbbell} title="No sets yet" text="Log this exercise in a workout to see your progress." />
+      )}
+    </Screen>
   );
 };

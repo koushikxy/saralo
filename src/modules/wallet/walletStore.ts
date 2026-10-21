@@ -73,6 +73,8 @@ export interface WalletState {
   setCustomQrImageUri: (uri: string | null) => void;
   addBankAccount: (bank: Omit<BankAccount, 'id'>) => void;
   deleteBankAccount: (id: string) => void;
+  updateBankAccount: (id: string, bank: Omit<BankAccount, 'id'>) => void;
+  updateCard: (id: string, card: Omit<SavedCard, 'id'>) => void;
   addCard: (card: Omit<SavedCard, 'id'>) => void;
   deleteCard: (id: string) => void;
   setBudgets: (monthlyBudget: number, categoryBudgets: Record<string, number>) => void;
@@ -129,6 +131,10 @@ export const useWalletStore = create<WalletState>()(
     };
     set((state) => ({ bankAccounts: [b, ...state.bankAccounts] }));
   },
+
+  updateBankAccount: (id, bank) => set((state) => ({ bankAccounts: state.bankAccounts.map((b) => (b.id === id ? { ...bank, id } : b)) })),
+
+  updateCard: (id, card) => set((state) => ({ savedCards: state.savedCards.map((c) => (c.id === id ? { ...card, id } : c)) })),
 
   deleteBankAccount: (id) => {
     set((state) => ({

@@ -99,3 +99,25 @@ export const describeSets = (sets: WorkoutSet[]) => {
   if (same) return `${sets.length} × ${sets[0].reps}${sets[0].kg ? ` · ${sets[0].kg} kg` : ''}`;
   return `${sets.length} sets · best ${top.kg ? `${top.kg} kg × ` : ''}${top.reps}`;
 };
+
+export const estMax = (s: WorkoutSet) => (s.kg ? Math.round(s.kg * (1 + Math.min(s.reps, 12) / 30)) : 0);
+
+export const muscleOf = (name: string) => Object.keys(EXERCISES).find((g) => EXERCISES[g].includes(name)) ?? 'Other';
+
+export const suggestNext = (prev: WorkoutSet[] | null) => {
+  if (!prev?.length) return null;
+  const top = prev.reduce((a, b) => (b.kg > a.kg || (b.kg === a.kg && b.reps > a.reps) ? b : a));
+  if (!top.kg) return { kg: 0, reps: top.reps + 1, why: 'One more rep than last time' };
+  if (prev.every((s) => s.kg < top.kg || s.reps >= 10)) return { kg: top.kg + (top.kg < 20 ? 1 : 2.5), reps: 8, why: 'You hit 10 reps, so add a little weight' };
+  return { kg: top.kg, reps: Math.min(12, top.reps + 1), why: 'Same weight, aim for one more rep' };
+};
+
+export const liftHistory = (workouts: Workout[], name: string) =>
+  workouts
+    .map((w) => {
+      const sets = w.exercises.find((e) => e.name === name)?.sets ?? [];
+      const best = sets.reduce<WorkoutSet | null>((a, b) => (!a || estMax(b) > estMax(a) ? b : a), null);
+      return best ? { date: w.date, best, max: estMax(best), volume: sets.reduce((v, s) => v + s.kg * s.reps, 0) } : null;
+    })
+    .filter((x): x is { date: string; best: WorkoutSet; max: number; volume: number } => !!x)
+    .reverse();

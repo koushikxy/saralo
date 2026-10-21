@@ -13,7 +13,7 @@ export interface SkincareStep {
 
 export type SkinSlot = 'am' | 'pm';
 
-export type GarmentCategory = 'Tops' | 'Bottoms' | 'Shoes' | 'Outerwear' | 'Accessories';
+export type GarmentCategory = 'Tops' | 'Bottoms' | 'One-piece' | 'Shoes' | 'Outerwear' | 'Accessories';
 
 export type OccasionType =
   | 'All'
@@ -21,7 +21,8 @@ export type OccasionType =
   | 'Date Night'
   | 'Work & Executive'
   | 'Outing & Party'
-  | 'Gym & Active';
+  | 'Gym & Active'
+  | 'Festival & Wedding';
 
 export interface WardrobeItem {
   id: string;
@@ -38,6 +39,10 @@ export interface WardrobeItem {
   imageEmoji: string;
   imageUri?: string;
   brand?: string;
+  price?: number;
+  lastWorn?: string;
+  timesWorn?: number;
+  warmth?: 'Light' | 'Medium' | 'Warm';
 }
 
 export interface WeatherData {
@@ -77,7 +82,9 @@ export interface StyleState {
   toggleCleanStatus: (id: string) => void;
   washAllLaundry: () => void;
   addWardrobeItem: (item: Omit<WardrobeItem, 'id' | 'wearCount' | 'isClean'>) => void;
+  updateWardrobeItem: (id: string, patch: Partial<WardrobeItem>) => void;
   deleteWardrobeItem: (id: string) => void;
+  wornLog: { day: string; items: string[] }[];
 }
 
 export const useStyleStore = create<StyleState>()(
@@ -146,20 +153,22 @@ export const useStyleStore = create<StyleState>()(
     }));
   },
 
+  wornLog: [],
   logOutfitWorn: (itemIds) => {
-    set((state) => ({
-      wardrobe: state.wardrobe.map((item) => {
-        if (itemIds.includes(item.id)) {
-          const nextCount = item.wearCount + 1;
-          return {
-            ...item,
-            wearCount: nextCount,
-            isClean: nextCount < item.maxWearsBeforeWash,
-          };
-        }
-        return item;
-      }),
-    }));
+    const today = localDate();
+    set((state) => {
+      const before = state.wornLog.find((w) => w.day === today)?.items ?? [];
+      const older = state.wornLog.filter((w) => w.day !== today);
+      return {
+        wornLog: [...(itemIds.length ? [{ day: today, items: itemIds }] : []), ...older].slice(0, 90),
+        wardrobe: state.wardrobe.map((item) => {
+          const change = (itemIds.includes(item.id) ? 1 : 0) - (before.includes(item.id) ? 1 : 0);
+          if (!change) return item;
+          const wearCount = Math.max(0, item.wearCount + change);
+          return { ...item, lastWorn: change > 0 ? today : older.find((w) => w.items.includes(item.id))?.day, wearCount, timesWorn: Math.max(0, (item.timesWorn ?? 0) + change), isClean: wearCount < item.maxWearsBeforeWash };
+        }),
+      };
+    });
   },
 
   washItem: (id) => {
@@ -197,12 +206,14 @@ export const useStyleStore = create<StyleState>()(
   addWardrobeItem: (newItem) => {
     const item: WardrobeItem = {
       ...newItem,
-      id: 'w-' + Date.now(),
+      id: `w-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       wearCount: 0,
       isClean: true,
     };
     set((state) => ({ wardrobe: [item, ...state.wardrobe] }));
   },
+
+  updateWardrobeItem: (id, patch) => set((state) => ({ wardrobe: state.wardrobe.map((item) => (item.id === id ? { ...item, ...patch } : item)) })),
 
   deleteWardrobeItem: (id) => {
     set((state) => ({

@@ -71,13 +71,36 @@ const encryptedBackend = (): StateStorage => {
         return null;
       }
     },
-    setItem: async (name, value) => {
+    setItem: (name, value) => {
       if (failedReads.has(name)) return;
-      await retry(async () => backend.setItem(name, await seal(value)));
+      const waiting = pending.get(name);
+      if (waiting) clearTimeout(waiting.timer);
+      pending.set(name, { value, timer: setTimeout(() => write(name), 400) });
     },
-    removeItem: (name) => backend.removeItem(name),
+    removeItem: (name) => {
+      const waiting = pending.get(name);
+      if (waiting) clearTimeout(waiting.timer);
+      pending.delete(name);
+      return backend.removeItem(name);
+    },
   };
 };
+
+const pending = new Map<string, { value: string; timer: ReturnType<typeof setTimeout> }>();
+
+const write = async (name: string) => {
+  const waiting = pending.get(name);
+  if (!waiting) return;
+  pending.delete(name);
+  clearTimeout(waiting.timer);
+  try {
+    await retry(async () => storageBackend.setItem(name, await seal(waiting.value)));
+  } catch (e) {
+    console.warn(`[Saralo] Could not save ${name}:`, e instanceof Error ? e.message : e);
+  }
+};
+
+export const flushWrites = () => Promise.all([...pending.keys()].map(write));
 
 export const persistStorage = createJSONStorage(encryptedBackend);
 

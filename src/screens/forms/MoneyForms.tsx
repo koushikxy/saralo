@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { pickIcon } from '../../ui/pickIcons';
+import { useShallow } from 'zustand/react/shallow';
 import { View, Text, TextInput, Share, Image, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { copySecret } from '../../core/security/copySecret';
-import { Copy, Building2, CreditCard, Share2 } from 'lucide-react-native';
-import { Form, Field, Pick, T, Button, Section, Row, Chips, AppBar, Screen } from '../../ui/kit';
+import { Copy, Building2, CreditCard, Share2, Pencil } from 'lucide-react-native';
+import { Form, Field, Pick, T, Button, Section, Row, Chips, AppBar, Screen, SuggestField, Segmented } from '../../ui/kit';
+import { BANK_NAMES, ifscPrefix, bankFromIfsc, upiApp } from '../../core/india';
 import { TouchableOpacity } from '../../components/Touchable';
 import { WhenPicker } from '../../components/WhenPicker';
 import { useWalletStore, EXPENSE_CATEGORIES, INCOME_SOURCES } from '../../modules/wallet/walletStore';
@@ -22,7 +25,7 @@ const toNumber = (v: string) => Math.max(0, Number(v.replace(/[^0-9.]/g, '')) ||
 export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
   const c = useColors();
   const scale = useTextScale();
-  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useWalletStore();
+  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useWalletStore(useShallow(({ transactions, addTransaction, updateTransaction, deleteTransaction }) => ({ transactions, addTransaction, updateTransaction, deleteTransaction })));
   const existing = transactions.find((t) => t.id === route.params?.id);
   const [kind, setKind] = useState<'Spent' | 'Received'>(existing ? (existing.type === 'INCOME' ? 'Received' : 'Spent') : route.params?.kind ?? 'Spent');
   const [amount, setAmount] = useState(existing ? String(existing.amount) : '');
@@ -52,15 +55,16 @@ export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
 
   return (
     <Form title={existing ? 'Edit entry' : kind === 'Spent' ? 'I spent' : 'I got money'} onCancel={() => navigation.goBack()} onSave={save} canSave={value > 0}>
-      <Chips options={['Spent', 'Received']} value={kind} onChange={switchKind} style={{ marginBottom: 18 }} />
+      <Segmented options={['Spent', 'Received']} value={kind} onChange={switchKind} style={{ marginHorizontal: 16, marginBottom: 18 }} />
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
         <T v="section">Amount</T>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
           <Text style={{ fontSize: 40 * scale, fontWeight: '800', color: c.textMuted }}>₹</Text>
           <TextInput
             value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
+            onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+            maxLength={9}
+            keyboardType="decimal-pad"
             autoFocus={!existing}
             accessibilityLabel="Amount"
             placeholder="0"
@@ -69,7 +73,7 @@ export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
           />
         </View>
       </View>
-      <Pick label={kind === 'Spent' ? 'Spent on' : 'Money from'} options={categories} value={category} onChange={setCategory} />
+      <Pick label={kind === 'Spent' ? 'Spent on' : 'Money from'} options={categories} value={category} onChange={setCategory} meta={pickIcon} />
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
         <T v="section" style={{ marginBottom: 8 }}>
           Date
@@ -93,7 +97,7 @@ export const TransactionForm: React.FC<Nav> = ({ navigation, route }) => {
 };
 
 export const BudgetForm: React.FC<Nav> = ({ navigation }) => {
-  const { monthlyBudget, categoryBudgets, setBudgets } = useWalletStore();
+  const { monthlyBudget, categoryBudgets, setBudgets } = useWalletStore(useShallow(({ monthlyBudget, categoryBudgets, setBudgets }) => ({ monthlyBudget, categoryBudgets, setBudgets })));
   const [total, setTotal] = useState(monthlyBudget ? String(monthlyBudget) : '');
   const [byCat, setByCat] = useState<Record<string, string>>(
     Object.fromEntries(EXPENSE_CATEGORIES.map((cat) => [cat, categoryBudgets[cat] ? String(categoryBudgets[cat]) : '']))
@@ -111,14 +115,14 @@ export const BudgetForm: React.FC<Nav> = ({ navigation }) => {
 
   return (
     <Form title="Monthly budget" onCancel={() => navigation.goBack()} onSave={save}>
-      <Field label="Total I want to spend this month" prefix="₹" keyboardType="numeric" value={total} onChangeText={setTotal} hint="We will show how much is left as you spend." />
+      <Field label="Total I want to spend this month" prefix="₹" keyboardType="number-pad" maxLength={9} value={total} onChangeText={setTotal} hint="We will show how much is left as you spend." />
       {showCats ? (
         <>
           <T v="section" style={{ paddingHorizontal: 16, marginBottom: 10 }}>
             Limits by category (optional)
           </T>
           {EXPENSE_CATEGORIES.map((cat) => (
-            <Field key={cat} label={cat} prefix="₹" keyboardType="numeric" value={byCat[cat]} onChangeText={(v) => setByCat({ ...byCat, [cat]: v })} />
+            <Field key={cat} label={cat} prefix="₹" keyboardType="number-pad" maxLength={9} value={byCat[cat]} onChangeText={(v) => setByCat({ ...byCat, [cat]: v })} />
           ))}
         </>
       ) : (
@@ -130,22 +134,26 @@ export const BudgetForm: React.FC<Nav> = ({ navigation }) => {
 
 export const UpiScreen: React.FC<Nav> = ({ navigation }) => {
   const c = useColors();
-  const { upiId, upiName, setUpiDetails, customQrImageUri } = useWalletStore();
+  const { upiId, upiName, setUpiDetails, customQrImageUri } = useWalletStore(useShallow(({ upiId, upiName, setUpiDetails, customQrImageUri }) => ({ upiId, upiName, setUpiDetails, customQrImageUri })));
   const userName = useProfileStore((s) => s.profile.name);
+  const [editing, setEditing] = useState(!upiId);
   const [id, setId] = useState(upiId);
   const [name, setName] = useState(upiName || userName);
   const [error, setError] = useState('');
   const link = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName || userName)}&cu=INR`;
+  const app = upiApp(id);
 
   const save = () => {
-    if (!/^[\w.-]+@[A-Za-z]+$/.test(id.trim())) return setError('A UPI ID looks like name@bank, for example 98xxxxxx10@ybl');
+    if (!/^[\w.-]{2,}@[A-Za-z]+$/.test(id.trim())) return setError('A UPI ID looks like name@bank, for example 98xxxxxx10@ybl');
+    if (!app && error !== 'unknown') return setError('unknown');
     setError('');
     setUpiDetails(id.trim(), name.trim() || userName);
+    setEditing(false);
   };
 
   return (
     <Screen>
-      <AppBar title="My UPI QR" onBack={() => navigation.goBack()} />
+      <AppBar title="My UPI QR" onBack={() => navigation.goBack()} right={upiId && !editing ? [{ icon: Pencil, label: 'Edit UPI details', onPress: () => setEditing(true) }] : []} />
       {upiId || customQrImageUri ? (
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
           <View style={{ padding: 16, backgroundColor: '#FFFFFF', borderRadius: 20 }}>
@@ -168,18 +176,36 @@ export const UpiScreen: React.FC<Nav> = ({ navigation }) => {
           Add your UPI ID below to make a QR code people can scan to pay you.
         </T>
       )}
-      <Section title={upiId ? 'Change details' : 'Your UPI details'}>
-        <Field label="UPI ID" value={id} onChangeText={setId} autoCapitalize="none" keyboardType="email-address" error={error} />
-        <Field label="Name shown to payers" value={name} onChangeText={setName} />
-        <Button title="Save" onPress={save} style={{ marginHorizontal: 16 }} />
-      </Section>
+      {editing ? (
+        <Section title={upiId ? 'Change details' : 'Your UPI details'} plain>
+          <Field
+            label="UPI ID"
+            value={id}
+            onChangeText={(v) => {
+              setId(v.replace(/\s/g, ''));
+              setError('');
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            maxLength={60}
+            error={error === 'unknown' ? `We don't know "@${id.split('@')[1] ?? ''}". Check it, or tap Save again if it is right.` : error}
+            hint={app ? `✓ ${app} UPI ID` : undefined}
+          />
+          <Field label="Name shown to payers" value={name} onChangeText={setName} autoCapitalize="words" maxLength={50} />
+          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
+            {upiId ? <Button title="Cancel" variant="secondary" style={{ flex: 1 }} onPress={() => { setEditing(false); setId(upiId); setError(''); }} /> : null}
+            <Button title="Save" onPress={save} style={{ flex: 1 }} />
+          </View>
+        </Section>
+      ) : null}
     </Screen>
   );
 };
 
 export const AccountsScreen: React.FC<Nav> = ({ navigation }) => {
   const c = useColors();
-  const { bankAccounts, savedCards, deleteBankAccount, deleteCard } = useWalletStore();
+  const { bankAccounts, savedCards } = useWalletStore(useShallow(({ bankAccounts, savedCards }) => ({ bankAccounts, savedCards })));
   const [shown, setShown] = useState<string | null>(null);
 
   const reveal = async (id: string) => {
@@ -207,10 +233,12 @@ export const AccountsScreen: React.FC<Nav> = ({ navigation }) => {
               title={b.bankName}
               subtitle={`${shown === b.id ? b.accountNumber : '•••• ' + b.accountNumber.slice(-4)} · IFSC ${b.ifscCode}`}
               onPress={() => reveal(b.id)}
-              onLongPress={() => confirmAction('Remove this account?', b.bankName, 'Remove', () => deleteBankAccount(b.id))}
               last={i === bankAccounts.length - 1}
               right={
-                <TouchableIcon icon={Copy} label="Copy account number" onPress={() => copy(b.accountNumber)} color={c.textMuted} />
+                <>
+                  <TouchableIcon icon={Copy} label="Copy account number" onPress={() => copy(b.accountNumber)} color={c.textMuted} />
+                  <TouchableIcon icon={Pencil} label="Edit account" onPress={() => navigation.navigate('AccountForm', { kind: 'bank', id: b.id })} color={c.textMuted} />
+                </>
               }
             />
           ))
@@ -230,15 +258,19 @@ export const AccountsScreen: React.FC<Nav> = ({ navigation }) => {
               title={card.cardName}
               subtitle={`${shown === card.id ? card.cardNumber : '•••• ' + card.cardNumber.replace(/\D/g, '').slice(-4)} · ${card.cardType} · expires ${card.expiryDate}`}
               onPress={() => reveal(card.id)}
-              onLongPress={() => confirmAction('Remove this card?', card.cardName, 'Remove', () => deleteCard(card.id))}
               last={i === savedCards.length - 1}
-              right={<TouchableIcon icon={Copy} label="Copy card number" onPress={() => copy(card.cardNumber.replace(/\s/g, ''))} color={c.textMuted} />}
+              right={
+                <>
+                  <TouchableIcon icon={Copy} label="Copy card number" onPress={() => copy(card.cardNumber.replace(/\s/g, ''))} color={c.textMuted} />
+                  <TouchableIcon icon={Pencil} label="Edit card" onPress={() => navigation.navigate('AccountForm', { kind: 'card', id: card.id })} color={c.textMuted} />
+                </>
+              }
             />
           ))
         )}
       </Section>
       <T v="caption" style={{ padding: 16 }}>
-        Tap to show the full number. Long-press to remove. Your phone lock is asked first.
+        Tap to show the full number. Your phone lock is asked first.
       </T>
     </Screen>
   );
@@ -251,49 +283,123 @@ const TouchableIcon: React.FC<{ icon: typeof Copy; label: string; onPress: () =>
 );
 
 export const AccountForm: React.FC<Nav> = ({ navigation, route }) => {
+  const c = useColors();
   const kind: 'bank' | 'card' = route.params?.kind ?? 'bank';
-  const { addBankAccount, addCard } = useWalletStore();
+  const w = useWalletStore(useShallow(({ addBankAccount, addCard, updateBankAccount, updateCard, deleteBankAccount, deleteCard, bankAccounts, savedCards }) => ({ addBankAccount, addCard, updateBankAccount, updateCard, deleteBankAccount, deleteCard, bankAccounts, savedCards })));
   const userName = useProfileStore((s) => s.profile.name);
-  const [a, setA] = useState('');
-  const [b, setB] = useState('');
-  const [d, setD] = useState('');
-  const [holder, setHolder] = useState(userName);
-  const [type, setType] = useState(kind === 'bank' ? 'Savings' : 'Debit');
+  const bank = w.bankAccounts.find((x) => x.id === route.params?.id);
+  const card = w.savedCards.find((x) => x.id === route.params?.id);
+  const [a, setA] = useState(bank?.bankName ?? card?.cardName ?? '');
+  const [b, setB] = useState(bank?.accountNumber ?? card?.cardNumber.replace(/\D/g, '') ?? '');
+  const [d, setD] = useState(bank?.ifscCode ?? '');
+  const [month, setMonth] = useState(card?.expiryDate.slice(0, 2) ?? '');
+  const [year, setYear] = useState(card?.expiryDate.slice(3, 5) ?? '');
+  const [holder, setHolder] = useState(bank?.accountHolder ?? card?.cardHolder ?? userName);
+  const [type, setType] = useState<string>(bank?.accountType ?? card?.cardType ?? (kind === 'bank' ? 'Savings' : 'Debit'));
   const [error, setError] = useState('');
+  const yearRef = useRef<TextInput>(null);
+  const digits = b.replace(/\D/g, '');
+  const thisYear = new Date().getFullYear() % 100;
+
+  const pickBank = (name: string) => {
+    setA(name);
+    const prefix = ifscPrefix(name);
+    if (kind === 'bank' && prefix && (!d || !d.startsWith(prefix))) setD(prefix);
+  };
 
   const save = () => {
     if (kind === 'bank') {
-      if (b.replace(/\D/g, '').length < 9) return setError('Account number should be 9 to 18 digits');
-      if (d.trim().length !== 11) return setError('IFSC code has 11 characters, for example SBIN0001234');
-      addBankAccount({ bankName: a.trim(), accountNumber: b.replace(/\D/g, ''), ifscCode: d.trim().toUpperCase(), accountHolder: holder.trim(), accountType: type as 'Savings' | 'Current' });
+      if (digits.length < 9) return setError('Account number should be 9 to 18 digits');
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d)) return setError('IFSC code has 11 characters, for example SBIN0001234');
+      const data = { bankName: a.trim(), accountNumber: digits, ifscCode: d, accountHolder: holder.trim(), accountType: type as 'Savings' | 'Current' };
+      if (bank) w.updateBankAccount(bank.id, data);
+      else w.addBankAccount(data);
     } else {
-      const digits = b.replace(/\D/g, '');
       if (digits.length < 15) return setError('Card number should be 15 or 16 digits');
-      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(d.trim())) return setError('Expiry looks like MM/YY, for example 08/29');
-      addCard({
+      const m = Number(month);
+      const y = Number(year);
+      if (!(m >= 1 && m <= 12) || year.length !== 2 || y < thisYear || y > thisYear + 20) return setError('Check the expiry month and year printed on the card');
+      const data = {
         cardName: a.trim(),
         cardType: type as 'Credit' | 'Debit',
-        network: digits.startsWith('4') ? 'Visa' : /^(5[1-5]|2[2-7])/.test(digits) ? 'Mastercard' : /^3[47]/.test(digits) ? 'Amex' : 'RuPay',
+        network: (digits.startsWith('4') ? 'Visa' : /^(5[1-5]|2[2-7])/.test(digits) ? 'Mastercard' : /^3[47]/.test(digits) ? 'Amex' : 'RuPay') as 'Visa' | 'Mastercard' | 'Amex' | 'RuPay',
         cardNumber: digits.match(/.{1,4}/g)!.join(' '),
-        expiryDate: d.trim(),
+        expiryDate: `${month.padStart(2, '0')}/${year}`,
         cardHolder: holder.trim().toUpperCase(),
-        colorTheme: 'dark',
-      });
+        colorTheme: 'dark' as const,
+      };
+      if (card) w.updateCard(card.id, data);
+      else w.addCard(data);
     }
     navigation.goBack();
   };
 
   return (
-    <Form title={kind === 'bank' ? 'Add bank account' : 'Add card'} onCancel={() => navigation.goBack()} onSave={save} canSave={!!a.trim() && !!b.trim()}>
-      <Field label={kind === 'bank' ? 'Bank name' : 'Card name or bank'} value={a} onChangeText={setA} autoFocus />
-      <Field label={kind === 'bank' ? 'Account number' : 'Card number'} value={b} onChangeText={setB} keyboardType="number-pad" />
-      <Field label={kind === 'bank' ? 'IFSC code' : 'Expiry (MM/YY)'} value={d} onChangeText={setD} autoCapitalize="characters" error={error} />
-      <Field label="Name on account" value={holder} onChangeText={setHolder} />
+    <Form title={`${bank || card ? 'Edit' : 'Add'} ${kind === 'bank' ? 'bank account' : 'card'}`} onCancel={() => navigation.goBack()} onSave={save} canSave={!!a.trim() && !!digits}>
+      <SuggestField label={kind === 'bank' ? 'Bank name' : 'Card name or bank'} value={a} onChangeText={pickBank} onPick={pickBank} options={BANK_NAMES} autoCapitalize="words" maxLength={40} autoFocus={!bank && !card} />
+      {kind === 'bank' ? (
+        <>
+          <Field label="Account number" value={b} onChangeText={(v) => { setB(v.replace(/\D/g, '')); setError(''); }} keyboardType="number-pad" maxLength={18} />
+          <Field
+            label="IFSC code"
+            value={d}
+            onChangeText={(v) => { setD(v.toUpperCase().replace(/[^A-Z0-9]/g, '')); setError(''); }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={11}
+            hint={ifscPrefix(a) && d === ifscPrefix(a) ? 'Type the last 6 characters from your passbook or cheque' : bankFromIfsc(d) && !ifscPrefix(a) ? `This IFSC is from ${bankFromIfsc(d)}` : undefined}
+          />
+        </>
+      ) : (
+        <>
+          <Field label="Card number" value={digits.replace(/(\d{4})(?=\d)/g, '$1 ')} onChangeText={(v) => { setB(v.replace(/\D/g, '').slice(0, 16)); setError(''); }} keyboardType="number-pad" maxLength={19} />
+          <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
+            <T v="section" style={{ marginBottom: 6 }}>
+              Expiry
+            </T>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {[
+                ['MM', month, (v: string) => { setMonth(v); if (v.length === 2) yearRef.current?.focus(); }],
+                ['YY', year, setYear],
+              ].map(([ph, value, set], i) => (
+                <React.Fragment key={ph as string}>
+                  {i === 1 ? <Text style={{ fontSize: 22, color: c.textMuted }}>/</Text> : null}
+                  <TextInput
+                    ref={i === 1 ? yearRef : undefined}
+                    value={value as string}
+                    onChangeText={(v) => { (set as (v: string) => void)(v.replace(/\D/g, '')); setError(''); }}
+                    placeholder={ph as string}
+                    placeholderTextColor={c.textFaint}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    accessibilityLabel={i === 0 ? 'Expiry month' : 'Expiry year'}
+                    style={{ width: 72, height: 54, borderRadius: 14, borderWidth: 1.5, borderColor: c.line, backgroundColor: c.card, textAlign: 'center', fontSize: 17, color: c.ink }}
+                  />
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
+      <Field label={kind === 'bank' ? 'Name on account' : 'Name on card'} value={holder} onChangeText={setHolder} autoCapitalize="words" maxLength={50} error={error} />
       <Pick label="Type" options={kind === 'bank' ? ['Savings', 'Current'] : ['Debit', 'Credit']} value={type} onChange={setType} />
-      <T v="caption" style={{ paddingHorizontal: 16 }}>
+      <T v="caption" style={{ paddingHorizontal: 16, marginBottom: 18 }}>
         We never ask for or store your card CVV or PIN.
       </T>
+      {bank || card ? (
+        <Button
+          title="Delete"
+          variant="secondary"
+          style={{ marginHorizontal: 16 }}
+          onPress={() =>
+            confirmAction('Delete this?', a, 'Delete', () => {
+              if (bank) w.deleteBankAccount(bank.id);
+              if (card) w.deleteCard(card.id);
+              navigation.goBack();
+            })
+          }
+        />
+      ) : null}
     </Form>
   );
 };
-

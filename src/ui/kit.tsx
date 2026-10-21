@@ -9,11 +9,16 @@ import {
   Switch,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Modal,
+  Pressable,
   StyleProp,
   ViewStyle,
   TextStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
+import { useScrollToTop } from '@react-navigation/native';
 import { ChevronRight, Check, ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from '../components/Touchable';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -73,9 +78,12 @@ export const Screen: React.FC<{ children: React.ReactNode; scroll?: boolean; pad
   padBottom = 120,
 }) => {
   const c = useColors();
+  const ref = React.useRef<ScrollView>(null);
+  useScrollToTop(ref);
   if (!scroll) return <View style={{ flex: 1, backgroundColor: c.bg }}>{children}</View>;
   return (
     <ScrollView
+      ref={ref}
       style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={{ paddingBottom: padBottom }}
       keyboardShouldPersistTaps="handled"
@@ -90,7 +98,7 @@ export const AppBar: React.FC<{
   title: string;
   logo?: React.ReactNode;
   onBack?: () => void;
-  right?: { icon: Icon; label: string; onPress: () => void }[];
+  right?: { icon?: Icon; node?: React.ReactNode; label: string; onPress: () => void }[];
   big?: boolean;
 }> = ({ title, logo, onBack, right = [], big = true }) => {
   const c = useColors();
@@ -109,19 +117,20 @@ export const AppBar: React.FC<{
           </T>
         )}
       </View>
-      {right.map(({ icon: I, label, onPress }) => (
+      {right.map(({ icon: I, node, label, onPress }) => (
         <TouchableOpacity key={label} style={styles.iconBtn} onPress={onPress} accessibilityLabel={label}>
-          <I size={24} color={c.ink} />
+          {node ?? (I ? <I size={24} color={c.ink} /> : null)}
         </TouchableOpacity>
       ))}
     </View>
   );
 };
 
-export const Section: React.FC<{ title?: string; action?: { label: string; onPress: () => void }; children: React.ReactNode }> = ({
+export const Section: React.FC<{ title?: string; action?: { label: string; onPress: () => void }; children: React.ReactNode; plain?: boolean }> = ({
   title,
   action,
   children,
+  plain,
 }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -139,7 +148,7 @@ export const Section: React.FC<{ title?: string; action?: { label: string; onPre
           ) : null}
         </View>
       ) : null}
-      {children}
+      {plain ? children : <View style={styles.card}>{children}</View>}
     </View>
   );
 };
@@ -162,8 +171,9 @@ export const IconCircle: React.FC<{ icon: Icon; color: string; size?: number }> 
   );
 };
 
-export const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 44 }) => {
+export const Avatar: React.FC<{ name: string; size?: number; uri?: string | null }> = ({ name, size = 44, uri }) => {
   const c = useColors();
+  if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.soft }} />;
   const initials = name
     .trim()
     .split(/\s+/)
@@ -247,8 +257,10 @@ export const Row: React.FC<{
 
 export const Fab: React.FC<{ label: string; icon: Icon; onPress: () => void }> = ({ label, icon: I, onPress }) => {
   const styles = useStyles(makeStyles);
+  const insets = useSafeAreaInsets();
+  const inTabs = React.useContext(BottomTabBarHeightContext) !== undefined;
   return (
-    <TouchableOpacity style={styles.fab} onPress={onPress} accessibilityLabel={label}>
+    <TouchableOpacity style={[styles.fab, { bottom: 20 + (inTabs ? 0 : insets.bottom) }]} onPress={onPress} accessibilityLabel={label}>
       <I size={22} color="#FFFFFF" strokeWidth={2.5} />
       <Text style={styles.fabText}>{label}</Text>
     </TouchableOpacity>
@@ -263,7 +275,7 @@ export const Chips: React.FC<{ options: readonly string[]; value: string; onChan
 }) => {
   const styles = useStyles(makeStyles);
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, style]}>
+    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, style]}>
       {options.map((o) => (
         <TouchableOpacity key={o} style={[styles.chip, value === o && styles.chipOn]} onPress={() => onChange(o)}>
           <Text style={[styles.chipText, value === o && styles.chipTextOn]}>{o}</Text>
@@ -274,44 +286,59 @@ export const Chips: React.FC<{ options: readonly string[]; value: string; onChan
 };
 
 export const Quick: React.FC<{ items: { label: string; icon: Icon; color: string; onPress: () => void }[] }> = ({ items }) => {
+  const c = useColors();
   const styles = useStyles(makeStyles);
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
+    <View style={styles.quickRow}>
       {items.map(({ label, icon: I, color, onPress }) => (
         <TouchableOpacity key={label} style={styles.quickItem} onPress={onPress} accessibilityLabel={label}>
-          <View style={[styles.quickRing, { borderColor: color }]}>
-            <View style={[styles.quickInner, { backgroundColor: color }]}>
-              <I size={26} color="#FFFFFF" />
-            </View>
+          <View style={[styles.quickTile, { backgroundColor: c.dark ? c.soft : color + '1A' }]}>
+            <I size={24} color={c.shade(color)} />
           </View>
-          <T v="caption" center lines={1} style={{ marginTop: 6 }}>
+          <T v="caption" center lines={1} style={{ marginTop: 8, fontSize: 12, color: c.ink, fontWeight: '500' }}>
             {label}
           </T>
         </TouchableOpacity>
       ))}
-    </ScrollView>
+    </View>
   );
 };
 
+const Reveal = React.createContext<((view: View | null) => void) | null>(null);
+
+const useReveal = () => {
+  const reveal = React.useContext(Reveal);
+  const box = React.useRef<View>(null);
+  return { box, show: () => reveal?.(box.current) };
+};
+
 export const Field: React.FC<
-  TextInputProps & { label: string; hint?: string; prefix?: string; error?: string }
-> = ({ label, hint, prefix, error, style, ...input }) => {
+  TextInputProps & { label: string; hint?: string; prefix?: string; error?: string; tall?: boolean; below?: React.ReactNode; suffix?: React.ReactNode }
+> = ({ label, hint, prefix, error, style, tall, below, suffix, maxLength, ...input }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const scale = useTextScale();
+  const { box, show } = useReveal();
   return (
-    <View style={styles.field}>
+    <View style={styles.field} ref={box}>
       <T v="section" style={{ marginBottom: 6 }}>
         {label}
       </T>
-      <View style={[styles.inputBox, error ? { borderColor: c.expense } : null, input.multiline && { minHeight: 96, alignItems: 'flex-start' }]}>
+      <View style={[styles.inputBox, error ? { borderColor: c.expense } : null, input.multiline && { minHeight: tall ? 200 : 96, alignItems: 'flex-start' }]}>
         {prefix ? <Text style={[styles.prefix, { fontSize: 17 * scale }]}>{prefix}</Text> : null}
         <TextInput
           placeholderTextColor={c.textFaint}
+          maxLength={maxLength ?? (input.multiline ? 2000 : 60)}
           {...input}
-          style={[styles.input, { fontSize: 17 * scale }, input.multiline && { textAlignVertical: 'top', paddingTop: 12 }, style]}
+          onFocus={(e) => {
+            show();
+            input.onFocus?.(e);
+          }}
+          style={[styles.input, { fontSize: 17 * scale }, input.multiline && { textAlignVertical: 'top', paddingTop: 12, minHeight: tall ? 196 : 92 }, style]}
         />
+        {suffix}
       </View>
+      {below}
       {error ? (
         <T v="caption" color={c.expense} style={{ marginTop: 4 }}>
           {error}
@@ -319,6 +346,143 @@ export const Field: React.FC<
       ) : hint ? (
         <T v="caption" style={{ marginTop: 4 }}>
           {hint}
+        </T>
+      ) : null}
+    </View>
+  );
+};
+
+export const digitsOf = (v: string) => v.replace(/\D/g, '');
+export const localPhone = (v: string) => digitsOf(v).replace(/^(91|0)(?=\d{10}$)/, '').slice(0, 10);
+export const showPhone = (v: string) => (localPhone(v) ? `+91 ${localPhone(v).replace(/^(\d{5})(\d)/, '$1 $2')}` : '');
+export const callable = (v: string) => (localPhone(v).length === 10 ? `+91${localPhone(v)}` : digitsOf(v));
+
+export const PhoneField: React.FC<{ label: string; value: string; onChange: (v: string) => void; hint?: string }> = ({ label, value, onChange, hint }) => {
+  const n = localPhone(value);
+  const [left, setLeft] = React.useState(false);
+  return (
+    <Field
+      label={label}
+      prefix="+91"
+      value={n}
+      onChangeText={(v) => onChange(digitsOf(v).slice(0, 10))}
+      onFocus={() => setLeft(false)}
+      onBlur={() => setLeft(true)}
+      keyboardType="number-pad"
+      maxLength={10}
+      error={left && n && n.length < 10 ? 'Phone number has 10 digits' : undefined}
+      hint={hint}
+    />
+  );
+};
+
+export const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim());
+const MAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'rediffmail.com'];
+
+export const EmailField: React.FC<{ label: string; value: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => {
+  const [user, typed = ''] = value.split('@');
+  const ideas = user && !MAIL_DOMAINS.includes(typed) ? MAIL_DOMAINS.filter((d) => d.startsWith(typed.toLowerCase())).slice(0, 4) : [];
+  return (
+    <Field
+      label={label}
+      value={value}
+      onChangeText={(v) => onChange(v.replace(/\s/g, ''))}
+      keyboardType="email-address"
+      autoCapitalize="none"
+      autoCorrect={false}
+      maxLength={80}
+      error={value && !validEmail(value) && !ideas.length ? 'This email does not look right' : undefined}
+      below={ideas.length ? <Chips options={ideas.map((d) => `${user}@${d}`)} value="" onChange={onChange} style={{ paddingHorizontal: 0, paddingTop: 8 }} /> : null}
+    />
+  );
+};
+
+export const SuggestField: React.FC<TextInputProps & { label: string; options: readonly string[]; onPick: (v: string) => void; hint?: string; error?: string }> = ({
+  options,
+  onPick,
+  value = '',
+  ...rest
+}) => {
+  const [focus, setFocus] = React.useState(false);
+  const q = value.trim().toLowerCase();
+  const matches = focus && q ? options.filter((o) => o.toLowerCase().includes(q) && o.toLowerCase() !== q).slice(0, 5) : [];
+  return (
+    <Field
+      {...rest}
+      value={value}
+      onFocus={() => setFocus(true)}
+      onBlur={() => setTimeout(() => setFocus(false), 200)}
+      below={
+        matches.length ? (
+          <Chips
+            options={matches}
+            value=""
+            onChange={(v) => {
+              onPick(v);
+              setFocus(false);
+            }}
+            style={{ paddingHorizontal: 0, paddingTop: 8 }}
+          />
+        ) : null
+      }
+    />
+  );
+};
+
+const realDate = (y: string, m: string, d: string) => {
+  const dt = new Date(Number(y), Number(m) - 1, Number(d));
+  return y.length === 4 && Number(y) > 1900 && dt.getDate() === Number(d) && dt.getMonth() === Number(m) - 1 && dt <= new Date();
+};
+
+export const DateParts: React.FC<{ label: string; value: string; onChange: (v: string) => void; hint?: string }> = ({ label, value, onChange, hint }) => {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const scale = useTextScale();
+  const [y0, m0, d0] = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-') : ['', '', ''];
+  const [parts, setParts] = React.useState({ d: d0, m: m0, y: y0 });
+  const refs = { d: React.useRef<TextInput>(null), m: React.useRef<TextInput>(null), y: React.useRef<TextInput>(null) };
+  const { box, show } = useReveal();
+  const error = parts.d && parts.m && parts.y.length === 4 && !realDate(parts.y, parts.m, parts.d) ? 'This date does not look right' : undefined;
+  const set = (k: 'd' | 'm' | 'y', v: string) => {
+    const next = { ...parts, [k]: v.replace(/\D/g, '') };
+    setParts(next);
+    if (k === 'd' && next.d.length === 2) refs.m.current?.focus();
+    if (k === 'm' && next.m.length === 2) refs.y.current?.focus();
+    const ok = realDate(next.y, next.m, next.d);
+    onChange(ok ? `${next.y}-${next.m.padStart(2, '0')}-${next.d.padStart(2, '0')}` : next.d || next.m || next.y ? 'partial' : '');
+  };
+  const part = (k: 'd' | 'm' | 'y', ph: string, len: number, flex: number) => (
+    <View style={[styles.inputBox, { flex }, error ? { borderColor: c.expense } : null]}>
+      <TextInput
+        ref={refs[k]}
+        value={parts[k]}
+        onChangeText={(v) => set(k, v)}
+        onKeyPress={({ nativeEvent }) => {
+          if (nativeEvent.key === 'Backspace' && !parts[k] && k !== 'd') (k === 'y' ? refs.m : refs.d).current?.focus();
+        }}
+        onFocus={show}
+        placeholder={ph}
+        placeholderTextColor={c.textFaint}
+        keyboardType="number-pad"
+        maxLength={len}
+        accessibilityLabel={`${label} ${ph}`}
+        style={[styles.input, { fontSize: 17 * scale, textAlign: 'center' }]}
+      />
+    </View>
+  );
+  return (
+    <View style={styles.field} ref={box}>
+      <T v="section" style={{ marginBottom: 6 }}>
+        {label}
+      </T>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {part('d', 'DD', 2, 1)}
+        {part('m', 'MM', 2, 1)}
+        {part('y', 'YYYY', 4, 1.6)}
+      </View>
+      {error || hint ? (
+        <T v="caption" color={error ? c.expense : undefined} style={{ marginTop: 4 }}>
+          {error ?? hint}
         </T>
       ) : null}
     </View>
@@ -359,19 +523,68 @@ export const DateField: React.FC<{ label: string; value: string; onChange: (v: s
   );
 };
 
-export const Pick: React.FC<{ label: string; options: readonly string[]; value: string; onChange: (v: string) => void }> = ({
+export const Segmented: React.FC<{ options: readonly string[]; value: string; onChange: (v: string) => void; style?: StyleProp<ViewStyle> }> = ({ options, value, onChange, style }) => {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const scale = useTextScale();
+  return (
+    <View style={[styles.seg, style]} accessibilityRole="radiogroup">
+      {options.map((o) => (
+        <TouchableOpacity key={o} onPress={() => onChange(o)} style={[styles.segItem, value === o && { backgroundColor: c.accent }]} accessibilityRole="radio" accessibilityState={{ selected: value === o }}>
+          <Text style={[styles.segText, { fontSize: 15 * Math.min(scale, 1.15) }, value === o && { color: '#FFFFFF' }]} numberOfLines={1} adjustsFontSizeToFit>
+            {o}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
+export const Pick: React.FC<{ label: string; options: readonly string[]; value: string; onChange: (v: string) => void; columns?: number; meta?: (o: string) => [Icon, string] }> = ({
   label,
   options,
   value,
   onChange,
-}) => (
-  <View style={{ marginBottom: 18 }}>
-    <T v="section" style={{ marginBottom: 8, paddingHorizontal: 16 }}>
-      {label}
-    </T>
-    <Chips options={options} value={value} onChange={onChange} />
-  </View>
-);
+  columns,
+  meta,
+}) => {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const longest = Math.max(...options.map((o) => o.length));
+  const segmented = !columns && !meta && options.length <= 4 && longest <= 12;
+  const cols = columns ?? (meta ? 3 : longest <= 4 ? 4 : longest <= 9 ? 3 : 2);
+  return (
+    <View style={{ marginBottom: 18 }}>
+      <T v="section" style={{ marginBottom: 8, paddingHorizontal: 16 }}>
+        {label}
+      </T>
+      {segmented ? (
+        <Segmented options={options} value={value} onChange={onChange} style={{ marginHorizontal: 16 }} />
+      ) : (
+        <View style={styles.grid} accessibilityRole="radiogroup">
+          {options.map((o) => {
+            const on = value === o;
+            const [I, color] = meta ? meta(o) : [null, ''];
+            return (
+              <TouchableOpacity key={o} style={[styles.gridItem, { width: `${100 / cols}%` }]} onPress={() => onChange(o)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={o}>
+                <View style={[meta ? styles.tile : styles.gridChip, on && styles.tileOn]}>
+                  {I ? (
+                    <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dark ? c.soft : color + '1A', marginBottom: 6 }}>
+                      <I size={19} color={c.shade(color)} />
+                    </View>
+                  ) : null}
+                  <Text style={[styles.chipText, { textAlign: 'center', fontSize: meta ? 13 : 15 }, on && { color: c.accent }]} numberOfLines={2} adjustsFontSizeToFit>
+                    {o}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+};
 
 export const ToggleRow: React.FC<{ title: string; subtitle?: string; value: boolean; onChange: (v: boolean) => void; icon?: Icon; iconColor?: string; last?: boolean }> = ({
   title,
@@ -406,10 +619,10 @@ export const Button: React.FC<{ title: string; onPress: () => void; variant?: 'p
 }) => {
   const c = useColors();
   const styles = useStyles(makeStyles);
-  const bg = variant === 'primary' ? c.accent : variant === 'danger' ? c.expense : c.soft;
+  const bg = variant === 'primary' ? c.accent : variant === 'danger' ? c.expense : c.raised;
   const fg = variant === 'secondary' ? c.ink : '#FFFFFF';
   return (
-    <TouchableOpacity style={[styles.button, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }, style]} onPress={onPress} disabled={disabled}>
+    <TouchableOpacity style={[styles.button, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }, variant === 'secondary' && styles.outlined, style]} onPress={onPress} disabled={disabled}>
       {I ? <I size={20} color={fg} /> : null}
       <Text style={[styles.buttonText, { color: fg }]}>{title}</Text>
     </TouchableOpacity>
@@ -447,6 +660,20 @@ export const Form: React.FC<{ title: string; onCancel: () => void; onSave?: () =
   const c = useColors();
   const styles = useStyles(makeStyles);
   const insets = useSafeAreaInsets();
+  const scroll = React.useRef<ScrollView>(null);
+  const offset = React.useRef(0);
+  const reveal = React.useCallback((view: View | null) => {
+    setTimeout(() => {
+      const list = scroll.current as unknown as View | null;
+      if (!view || !list) return;
+      list.measureInWindow((_, listY, __, listH) =>
+        view.measureInWindow((___, y, ____, h) => {
+          if (y >= listY && y + h <= listY + listH) return;
+          scroll.current?.scrollTo({ y: Math.max(0, offset.current + y - listY - 24), animated: true });
+        })
+      );
+    }, 350);
+  }, []);
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <View style={[styles.formHead, { paddingTop: Platform.OS === 'ios' ? 12 : 8 }]}>
@@ -468,8 +695,14 @@ export const Form: React.FC<{ title: string; onCancel: () => void; onSave?: () =
           <View style={styles.formHeadBtn} />
         )}
       </View>
-      <ScrollView contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 + insets.bottom }} keyboardShouldPersistTaps="handled">
-        {children}
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 + insets.bottom }}
+        keyboardShouldPersistTaps="handled"
+        onScroll={(e) => (offset.current = e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={32}
+      >
+        <Reveal.Provider value={reveal}>{children}</Reveal.Provider>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -484,8 +717,8 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     appBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, minHeight: 56, gap: 4 },
     iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-    section: { marginTop: 16 },
-    sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 4 },
+    section: { marginTop: 20 },
+    sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 28, marginBottom: 8 },
     row: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, gap: 14, minHeight: 64 },
     rowText: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingRight: 16, minHeight: 64, gap: 6 },
     rowLine: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
@@ -494,7 +727,6 @@ const makeStyles = (c: Palette) =>
     fab: {
       position: 'absolute',
       right: 16,
-      bottom: 16,
       height: 56,
       paddingHorizontal: 20,
       borderRadius: 18,
@@ -510,14 +742,23 @@ const makeStyles = (c: Palette) =>
     },
     fabText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
     chips: { paddingHorizontal: 16, gap: 8 },
-    chip: { paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: c.soft, justifyContent: 'center' },
-    chipOn: { backgroundColor: c.dark ? c.ink : c.inverse },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 },
+    gridItem: { padding: 4 },
+    gridChip: { minHeight: 48, borderRadius: 14, backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.line, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 6 },
+    chip: { paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+    outlined: { borderWidth: 1, borderColor: c.line },
+    card: { marginHorizontal: 16, borderRadius: 22, backgroundColor: c.card, overflow: 'hidden' },
+    chipOn: { backgroundColor: c.accent, borderColor: c.accent },
+    seg: { flexDirection: 'row', backgroundColor: c.raised, borderRadius: 16, padding: 4, borderWidth: 1, borderColor: c.line },
+    segItem: { flex: 1, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+    segText: { fontWeight: '600', color: c.ink },
+    tile: { minHeight: 92, borderRadius: 18, backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.line, alignItems: 'center', justifyContent: 'center', padding: 8 },
+    tileOn: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.accentSoft },
     chipText: { fontSize: 15, fontWeight: '600', color: c.ink },
-    chipTextOn: { color: c.dark ? '#000000' : '#FFFFFF' },
-    quickRow: { paddingHorizontal: 12, gap: 6, paddingVertical: 4 },
-    quickItem: { width: 76, alignItems: 'center' },
-    quickRing: { width: 68, height: 68, borderRadius: 34, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
-    quickInner: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+    chipTextOn: { color: '#FFFFFF' },
+    quickRow: { flexDirection: 'row', marginHorizontal: 16, paddingVertical: 14, paddingHorizontal: 4, borderRadius: 22, backgroundColor: c.card },
+    quickItem: { flex: 1, alignItems: 'center' },
+    quickTile: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     field: { paddingHorizontal: 16, marginBottom: 18 },
     inputBox: {
       flexDirection: 'row',
@@ -543,3 +784,36 @@ const makeStyles = (c: Palette) =>
     },
     formHeadBtn: { width: 84, paddingHorizontal: 8, paddingVertical: 8 },
   });
+
+export const ActionSheet: React.FC<{ visible: boolean; title: string; onClose: () => void; options: { title: string; sub?: string; icon: Icon; color: string; onPress: () => void }[] }> = ({ visible, title, onClose, options }) => {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} accessibilityLabel="Close" />
+      <View style={{ backgroundColor: c.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, paddingBottom: 16 + insets.bottom }}>
+        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.line, marginBottom: 12 }} />
+        <T v="h2" style={{ paddingHorizontal: 24, marginBottom: 8 }}>
+          {title}
+        </T>
+        <View style={{ marginHorizontal: 16, borderRadius: 22, backgroundColor: c.card, overflow: 'hidden' }}>
+          {options.map((o, i) => (
+            <Row
+              key={o.title}
+              icon={o.icon}
+              iconColor={o.color}
+              title={o.title}
+              subtitle={o.sub}
+              chevron
+              onPress={() => {
+                onClose();
+                o.onPress();
+              }}
+              last={i === options.length - 1}
+            />
+          ))}
+        </View>
+      </View>
+    </Modal>
+  );
+};

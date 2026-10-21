@@ -9,6 +9,7 @@ export interface Medicine {
   dose: string;
   times: string[];
   note?: string;
+  stock?: number;
 }
 
 export interface Bill {
@@ -38,6 +39,7 @@ interface LifeState {
   bills: Bill[];
   specialDays: SpecialDay[];
   shopping: ShoppingItem[];
+  recentShopping: string[];
   saveMedicine: (m: Omit<Medicine, 'id'> & { id?: string }) => void;
   deleteMedicine: (id: string) => void;
   toggleTaken: (medId: string, time: string, day?: string) => void;
@@ -65,13 +67,18 @@ export const useLifeStore = create<LifeState>()(
       bills: [],
       specialDays: [],
       shopping: [],
+      recentShopping: [],
       saveMedicine: ({ id, ...m }) => set((s) => ({ medicines: upsert(s.medicines, { ...m, id: id ?? newId('med') }) })),
       deleteMedicine: (id) => set((s) => ({ medicines: s.medicines.filter((m) => m.id !== id) })),
       toggleTaken: (medId, time, day = localDate()) =>
         set((s) => {
           const key = `${medId}@${time}`;
           const list = s.medTaken[day] ?? [];
-          return { medTaken: { ...s.medTaken, [day]: list.includes(key) ? list.filter((k) => k !== key) : [...list, key] } };
+          const taking = !list.includes(key);
+          return {
+            medTaken: { ...s.medTaken, [day]: taking ? [...list, key] : list.filter((k) => k !== key) },
+            medicines: s.medicines.map((m) => (m.id === medId && m.stock !== undefined ? { ...m, stock: Math.max(0, m.stock + (taking ? -1 : 1)) } : m)),
+          };
         }),
       saveBill: ({ id, ...b }) =>
         set((s) => {
@@ -94,7 +101,12 @@ export const useLifeStore = create<LifeState>()(
           return { shopping: [{ id: newId('shop'), text: text.trim(), done: false }, ...s.shopping] };
         }),
       toggleShopping: (id) => set((s) => ({ shopping: s.shopping.map((i) => (i.id === id ? { ...i, done: !i.done } : i)) })),
-      clearBought: () => set((s) => ({ shopping: s.shopping.filter((i) => !i.done) })),
+      clearBought: () =>
+        set((s) => {
+          const names = s.shopping.filter((i) => i.done).map((i) => i.text);
+          const recent = [...names, ...s.recentShopping.filter((r) => !names.some((n) => n.toLowerCase() === r.toLowerCase()))].slice(0, 16);
+          return { shopping: s.shopping.filter((i) => !i.done), recentShopping: recent };
+        }),
       deleteShopping: (id) => set((s) => ({ shopping: s.shopping.filter((i) => i.id !== id) })),
     }),
     { name: 'saralo-life', storage: persistStorage }
@@ -113,3 +125,5 @@ export const billDueDate = (bill: Bill, from = new Date()) => {
   const last = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate();
   return new Date(from.getFullYear(), from.getMonth(), Math.min(bill.dueDay, last));
 };
+
+export const lowStock = (m: Medicine) => m.stock !== undefined && m.stock <= m.times.length * 3;

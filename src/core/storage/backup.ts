@@ -7,6 +7,8 @@ import { useHealthStore } from '../../modules/health/healthStore';
 import { useWalletStore } from '../../modules/wallet/walletStore';
 import { useFinanceOpsStore } from '../../modules/finance/financeStore';
 import { useProfileStore } from '../../modules/profile/profileStore';
+import { useVaultSession } from '../security/session';
+import { localDate } from '../date';
 import { useStyleStore } from '../../modules/style/styleStore';
 import { useLifeStore } from '../../modules/life/lifeStore';
 import { useFitnessStore } from '../../modules/fitness/fitnessStore';
@@ -45,11 +47,18 @@ export const exportBackup = async (password: string) => {
   const file = new File(Paths.cache, fileName);
   file.create({ overwrite: true });
   file.write(content);
-  await Sharing.shareAsync(file.uri, { dialogTitle: 'Save your Saralo backup', mimeType: 'application/octet-stream' });
+  useVaultSession.getState().setPicking(true);
+  try {
+    await Sharing.shareAsync(file.uri, { dialogTitle: 'Save your Saralo backup', mimeType: 'application/octet-stream' });
+    useProfileStore.getState().setLastBackup(localDate());
+  } finally {
+    setTimeout(() => useVaultSession.getState().setPicking(false), 1500);
+  }
 };
 
 export const pickBackupFile = async () => {
-  const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+  useVaultSession.getState().setPicking(true);
+  const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true }).finally(() => setTimeout(() => useVaultSession.getState().setPicking(false), 1500));
   if (result.canceled) return null;
   const asset = result.assets[0];
   return asset.file ? asset.file.text() : new File(asset.uri).text();
